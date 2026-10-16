@@ -182,7 +182,7 @@ mod imp {
             .map_err(|e| format!("JavaVM: {e}"))?;
         let mut guard = vm.attach_current_thread().map_err(|e| e.to_string())?;
         let env = &mut *guard;
-        let result = f(env);
+        let mut result = f(env);
         // A failed call leaves its Java exception pending; any later JNI call
         // on this thread (or returning into Java) would then abort the app.
         if env.exception_check().unwrap_or(false) {

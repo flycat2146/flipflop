@@ -2,12 +2,14 @@
 //! the data directory. JNI on Android (see `android.rs`), rfd/arboard/open
 //! on desktop.
 
-use crate::i18n;
 use crate::AppWindow;
 use std::path::PathBuf;
 
 #[cfg(target_os = "android")]
 use crate::android;
+// Only the desktop file pickers have titles to translate.
+#[cfg(not(target_os = "android"))]
+use crate::i18n;
 #[cfg(not(target_os = "android"))]
 use crate::State;
 #[cfg(not(target_os = "android"))]
