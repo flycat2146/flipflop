@@ -186,6 +186,19 @@ public class FilePicker extends Fragment {
                 }
             }
         }
+        // MediaProvider can refuse a row the app may read perfectly well (its own route
+        // disagreed above), and with a media read permission the kernel lets the app
+        // read the media path itself, so as a last resort do that.
+        String path = mediaPath(resolver, uri);
+        if (!path.isEmpty()) {
+            try {
+                return new FileInputStream(new File(path));
+            } catch (IOException e) {
+                if (refusal == null) {
+                    refusal = e;
+                }
+            }
+        }
         if (refusal != null) {
             throw refusal;
         }
