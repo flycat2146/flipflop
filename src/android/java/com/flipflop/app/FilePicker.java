@@ -39,6 +39,9 @@ public class FilePicker extends Fragment {
     private static final int REQUEST_PERMISSION = 0x7a12;
     private static final int MAX_IMAGES = 100;
 
+    /** Whether the last picker result carried a read grant for its URI. */
+    private static boolean grantedOnResult;
+
     static native void onPicked(String[] uris);
 
     /** Any documents. Must be called on the UI thread. */
@@ -104,7 +107,8 @@ public class FilePicker extends Fragment {
                 }
                 // Which URI, and why: the reason alone does not say whether a provider
                 // refused a `content://` URI or a `file://` path was out of reach.
-                throw new IOException(uri + ": " + failure, failure);
+                throw new IOException(uri + ": " + failure + " [" + report(activity) + "]",
+                        failure);
             }
         }
         return staged.toString();
@@ -180,6 +184,33 @@ public class FilePicker extends Fragment {
                 Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO};
         }
         return new String[] {Manifest.permission.READ_EXTERNAL_STORAGE};
+    }
+
+    /** Every permission a pick could need, granted or not, for a failure report. */
+    private static String[] allReadPermissions() {
+        return new String[] {
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO,
+            Manifest.permission.READ_EXTERNAL_STORAGE};
+    }
+
+    /**
+     * What went into a failed read, compactly: whether the picker granted the URI, and
+     * where each read permission stands. "partial" is the Android 14 "select photos"
+     * answer, which grants only the photos the user ticked there.
+     */
+    private static String report(Activity activity) {
+        StringBuilder report = new StringBuilder("grant=").append(grantedOnResult ? "yes" : "no");
+        for (String permission : allReadPermissions()) {
+            report.append(", ")
+                    .append(permission.substring(permission.lastIndexOf('.') + 1))
+                    .append('=')
+                    .append(activity.checkSelfPermission(permission)
+                                    == PackageManager.PERMISSION_GRANTED
+                            ? "yes"
+                            : "no");
+        }
+        return report.toString();
     }
 
     private static boolean needsReadPermission(Activity activity) {
@@ -267,6 +298,10 @@ public class FilePicker extends Fragment {
         }
         String[] uris = new String[0];
         if (resultCode == Activity.RESULT_OK && data != null) {
+            // A picker that does not set this leaves its URIs unreadable however the
+            // app asks: worth saying so instead of failing with a bare EACCES.
+            grantedOnResult =
+                    (data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0;
             ClipData clip = data.getClipData();
             if (clip != null) {
                 uris = new String[clip.getItemCount()];
