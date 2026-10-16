@@ -1623,9 +1623,12 @@ mod imp {
         let dir = env
             .new_string(dir.to_string_lossy())
             .map_err(|e| e.to_string())?;
+        // Hoisted: `file_picker_class` needs `env` too, and the call below holds a
+        // mutable borrow of it.
+        let class = file_picker_class(env)?;
         let staged = env
             .call_static_method(
-                file_picker_class(env)?,
+                class,
                 "copyUris",
                 "(Landroid/app/Activity;[Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
                 &[
