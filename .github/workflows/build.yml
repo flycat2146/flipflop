@@ -1,8 +1,8 @@
 name: Build
 
-# Rolling build: a signed Android APK and the desktop binaries for every push to
-# master (this repository is a fork whose upstream release pipeline only runs on
-# version tags), plus on demand from the Actions tab. Everything lands in the
+# Rolling build: a signed Android APK on every push to master, plus the desktop
+# binaries when asked for (workflow_dispatch with the `desktop` input; the upstream
+# release pipeline only covers version tags). Everything lands in the
 # `rolling-latest` pre-release, so the download URLs never change.
 #
 # The Android job uses the same two secrets as the upstream release job
@@ -14,6 +14,11 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      desktop:
+        description: "Also build the Windows/Linux/macOS binaries"
+        type: boolean
+        default: false
 
 concurrency:
   group: build-${{ github.ref }}
@@ -109,6 +114,9 @@ jobs:
 
   desktop:
     name: desktop (${{ matrix.slug }})
+    # Opt-in: the APK is what gets iterated on, and four extra cold builds triple the
+    # wall time of every push.
+    if: github.event_name == 'workflow_dispatch' && inputs.desktop
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
@@ -203,7 +211,7 @@ jobs:
 
   publish:
     name: publish
-    needs: [apk, desktop]
+    needs: [apk]
     runs-on: ubuntu-latest
     steps:
       # `gh release create --target` resolves the tag itself, which needs a
