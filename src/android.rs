@@ -187,9 +187,48 @@ mod imp {
         // on this thread (or returning into Java) would then abort the app.
         if env.exception_check().unwrap_or(false) {
             let _ = env.exception_describe();
-            let _ = env.exception_clear();
+            let thrown = take_exception(env);
+            // JNI itself only reports "an exception was thrown"; the message is
+            // what tells a permission problem apart from a bug, so carry it into
+            // the error the caller logs and shows.
+            result = match (result, thrown) {
+                (Err(error), Some(thrown)) => Err(format!("{error}: {thrown}")),
+                (Err(error), None) => Err(error),
+                (Ok(_), Some(thrown)) => Err(thrown),
+                (Ok(value), None) => Ok(value),
+            };
         }
         result
+    }
+
+    /// `toString()` of the Java exception pending on `env`, which is cleared.
+    /// Call after [`JNIEnv::exception_describe`], which prints the stack trace.
+    fn take_exception(env: &mut jni::JNIEnv) -> Option<String> {
+        let exception = env.exception_occurred().ok()?;
+        if exception.is_null() {
+            return None;
+        }
+        env.exception_clear().ok()?;
+        let message = env
+            .call_method(&exception, "toString", "()Ljava/lang/String;", &[])
+            .ok()?
+            .l()
+            .ok()?;
+        if message.is_null() {
+            return None;
+        }
+        // `JavaStr` borrows the JString it came from, so turn it into a String
+        // before that temporary is dropped.
+        let text = env
+            .get_string(&JString::from(message))
+            .map(|message| message.to_string_lossy().into_owned())
+            .ok()?;
+        // `Throwable.toString` should not throw, but leave nothing pending: the
+        // caller is about to return into Java.
+        if env.exception_check().unwrap_or(false) {
+            let _ = env.exception_clear();
+        }
+        Some(text)
     }
 
     /// Activity object for JNI calls. `AndroidApp` holds a global reference
@@ -1004,7 +1043,7 @@ mod imp {
             });
             if let Err(e) = staged {
                 tracing::warn!("staging picked files failed: {e}");
-                show_toast("Could not read the picked files", true);
+                show_toast(&format!("Could not read the picked files: {e}"), true);
             }
             deliver_outbox(None, Origin::Picker);
         });
