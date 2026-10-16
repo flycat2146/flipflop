@@ -24,3 +24,8 @@ Thumbs.db
 build-dir/
 .flatpak-builder/
 *.flatpak
+
+# Scratch files from API/curl runs while debugging.
+/runs.json
+/jobs.json
+/rels.json
