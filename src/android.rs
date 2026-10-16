@@ -1023,24 +1023,7 @@ mod imp {
             return;
         }
         std::thread::spawn(move || {
-            let staged = with_env(|env| {
-                let mut parsed = Vec::new();
-                for uri in &picked {
-                    let text = env.new_string(uri).map_err(|e| e.to_string())?;
-                    let uri = env
-                        .call_static_method(
-                            "android/net/Uri",
-                            "parse",
-                            "(Ljava/lang/String;)Landroid/net/Uri;",
-                            &[JValue::Object(&text)],
-                        )
-                        .map_err(|e| e.to_string())?
-                        .l()
-                        .map_err(|e| e.to_string())?;
-                    parsed.push(uri);
-                }
-                stage_uris(env, &activity()?, parsed)
-            });
+            let staged = with_env(|env| stage_uris(env, &picked));
             if let Err(e) = staged {
                 tracing::warn!("staging picked files failed: {e}");
                 show_toast(&format!("Could not read the picked files: {e}"), true);
@@ -1523,7 +1506,25 @@ mod imp {
         }
         let is_plain_text = is_send
             && intent_type(env, &intent)?.is_some_and(|t| t.starts_with("text/plain"));
-        let staged = stage_uris(env, activity, uris)?;
+        // These are `Uri` objects (EXTRA_STREAM); the copy helper takes their strings.
+        let mut picked = Vec::with_capacity(uris.len());
+        for uri in uris {
+            let text = env
+                .call_method(&uri, "toString", "()Ljava/lang/String;", &[])
+                .map_err(|e| e.to_string())?
+                .l()
+                .map_err(|e| e.to_string())?;
+            if text.is_null() {
+                continue;
+            }
+            picked.push(
+                env.get_string(&JString::from(text))
+                    .map_err(|e| e.to_string())?
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+        }
+        let staged = stage_uris(env, &picked)?;
         // Some apps share text as a stream (an extensionless "text-content"
         // and the like), often with the same text in EXTRA_TEXT: that is a
         // paste, not a file. Named files (notes.txt) stay files.
@@ -1599,136 +1600,57 @@ mod imp {
         ))
     }
 
-    fn stage_uris(
-        env: &mut jni::JNIEnv,
-        activity: &JObject,
-        uris: Vec<JObject>,
-    ) -> Result<Vec<PathBuf>, String> {
-        let resolver = env
-            .call_method(
-                activity,
-                "getContentResolver",
-                "()Landroid/content/ContentResolver;",
-                &[],
-            )
-            .map_err(|e| e.to_string())?
-            .l()
+    /// Copy content URIs into the outbox, returning the staged paths. Used for both
+    /// the picker and the share sheet.
+    ///
+    /// The copy itself runs in Java (`FilePicker.copyUris`): a provider that refuses a
+    /// URI then reports the reason it has (a permission denial, a stream that will not
+    /// open), where going through JNI leaves nothing but "an exception was thrown".
+    fn stage_uris(env: &mut jni::JNIEnv, uris: &[String]) -> Result<Vec<PathBuf>, String> {
+        let Some(first) = uris.first() else {
+            return Ok(Vec::new());
+        };
+        let first = env.new_string(first).map_err(|e| e.to_string())?;
+        let array = env
+            .new_object_array(uris.len() as i32, "java/lang/String", &first)
             .map_err(|e| e.to_string())?;
-        let mut staged = Vec::new();
-        for uri in &uris {
-            let name = uri_display_name(env, &resolver, uri)?;
-            let input = env
-                .call_method(
-                    &resolver,
-                    "openInputStream",
-                    "(Landroid/net/Uri;)Ljava/io/InputStream;",
-                    &[JValue::Object(uri)],
-                )
-                .map_err(|e| e.to_string())?
-                .l()
+        for (index, uri) in uris.iter().enumerate() {
+            let text = env.new_string(uri).map_err(|e| e.to_string())?;
+            env.set_object_array_element(&array, index as i32, &text)
                 .map_err(|e| e.to_string())?;
-            if input.is_null() {
-                continue;
-            }
-            let out_path = unique_outbox_path(&name);
-            let result = copy_stream_to_file(env, &input, &out_path);
-            let _ = env.call_method(&input, "close", "()V", &[]);
-            result?;
-            staged.push(out_path);
         }
-        Ok(staged)
-    }
-
-    /// The file name the sharing app advertises (`OpenableColumns.DISPLAY_NAME`);
-    /// falls back to the URI's last path segment, which for `content://` URIs
-    /// is usually an opaque id like `image:1234`.
-    fn uri_display_name(
-        env: &mut jni::JNIEnv,
-        resolver: &JObject,
-        uri: &JObject,
-    ) -> Result<String, String> {
-        match query_display_name(env, resolver, uri) {
-            Ok(Some(name)) if !name.trim().is_empty() => return Ok(name),
-            Ok(_) => {}
-            Err(e) => {
-                let _ = env.exception_clear();
-                tracing::debug!("display name query failed: {e}");
-            }
-        }
-        let seg = env
-            .call_method(uri, "getLastPathSegment", "()Ljava/lang/String;", &[])
-            .map_err(|e| e.to_string())?
-            .l()
+        let dir = outbox_dir();
+        let dir = env
+            .new_string(dir.to_string_lossy())
             .map_err(|e| e.to_string())?;
-        if seg.is_null() {
-            return Ok("shared-file".to_string());
-        }
-        Ok(env
-            .get_string(&JString::from(seg))
-            .map_err(|e| e.to_string())?
-            .to_string_lossy()
-            .into_owned())
-    }
-
-    fn query_display_name(
-        env: &mut jni::JNIEnv,
-        resolver: &JObject,
-        uri: &JObject,
-    ) -> Result<Option<String>, String> {
-        let column = env.new_string("_display_name").map_err(|e| e.to_string())?;
-        let projection = env
-            .new_object_array(1, "java/lang/String", &column)
-            .map_err(|e| e.to_string())?;
-        let null = JObject::null();
-        // resolver.query(uri, {"_display_name"}, null, null, null)
-        let cursor = env
-            .call_method(
-                resolver,
-                "query",
-                "(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;",
+        let staged = env
+            .call_static_method(
+                file_picker_class(env)?,
+                "copyUris",
+                "(Landroid/app/Activity;[Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
                 &[
-                    JValue::Object(uri),
-                    JValue::Object(&projection),
-                    JValue::Object(&null),
-                    JValue::Object(&null),
-                    JValue::Object(&null),
+                    JValue::Object(&activity()?),
+                    JValue::Object(&array),
+                    JValue::Object(&dir),
                 ],
             )
             .map_err(|e| e.to_string())?
             .l()
             .map_err(|e| e.to_string())?;
-        if cursor.is_null() {
-            return Ok(None);
+        if staged.is_null() {
+            return Ok(Vec::new());
         }
-        let name = (|| {
-            let has_row = env
-                .call_method(&cursor, "moveToFirst", "()Z", &[])
-                .map_err(|e| e.to_string())?
-                .z()
-                .map_err(|e| e.to_string())?;
-            if !has_row {
-                return Ok(None);
-            }
-            let value = env
-                .call_method(
-                    &cursor,
-                    "getString",
-                    "(I)Ljava/lang/String;",
-                    &[JValue::Int(0)],
-                )
-                .map_err(|e| e.to_string())?
-                .l()
-                .map_err(|e| e.to_string())?;
-            if value.is_null() {
-                return Ok(None);
-            }
-            env.get_string(&JString::from(value))
-                .map(|s| Some(s.to_string_lossy().into_owned()))
-                .map_err(|e| e.to_string())
-        })();
-        let _ = env.exception_clear();
-        let _ = env.call_method(&cursor, "close", "()V", &[]);
-        name
+        // One staged path per line (see `FilePicker.copyUris`).
+        let staged = env
+            .get_string(&JString::from(staged))
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .into_owned();
+        Ok(staged
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(PathBuf::from)
+            .collect())
     }
 
     fn unique_outbox_path(file_name: &str) -> PathBuf {
@@ -1762,40 +1684,6 @@ mod imp {
             n += 1;
         }
         dest
-    }
-
-    fn copy_stream_to_file(
-        env: &mut jni::JNIEnv,
-        input: &JObject,
-        dest: &Path,
-    ) -> Result<(), String> {
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        use std::io::Write;
-        let file = std::fs::File::create(dest).map_err(|e| e.to_string())?;
-        let mut writer = std::io::BufWriter::new(file);
-        let buf = env.new_byte_array(64 * 1024).map_err(|e| e.to_string())?;
-        let buf_obj = buf.as_ref();
-        let mut chunk = vec![0i8; 64 * 1024];
-        loop {
-            let n = env
-                .call_method(input, "read", "([B)I", &[JValue::Object(buf_obj)])
-                .map_err(|e| e.to_string())?
-                .i()
-                .map_err(|e| e.to_string())?;
-            if n <= 0 {
-                break;
-            }
-            let chunk = &mut chunk[..n as usize];
-            env.get_byte_array_region(&buf, 0, chunk)
-                .map_err(|e| e.to_string())?;
-            // jbyte is i8; reinterpret as raw bytes for the file.
-            let bytes: Vec<u8> = chunk.iter().map(|b| *b as u8).collect();
-            writer.write_all(&bytes).map_err(|e| e.to_string())?;
-        }
-        writer.flush().map_err(|e| e.to_string())?;
-        Ok(())
     }
 }
 
