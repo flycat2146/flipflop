@@ -135,7 +135,14 @@ jobs:
       - name: Read version
         id: version
         shell: bash
-        run: echo "name=$(grep -m1 '^version = ' Cargo.toml | cut -d'\"' -f2)" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -n1)
+          if [ -z "$version" ]; then
+            echo "::error::could not read the version from Cargo.toml"
+            exit 1
+          fi
+          echo "name=$version" >> "$GITHUB_OUTPUT"
+          echo "building flipflop $version"
 
       - name: Install Linux build deps
         if: runner.os == 'Linux'
@@ -199,6 +206,10 @@ jobs:
     needs: [apk, desktop]
     runs-on: ubuntu-latest
     steps:
+      # `gh release create --target` resolves the tag itself, which needs a
+      # checkout (and the push below has nothing else to work with).
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           pattern: "*"
@@ -221,8 +232,8 @@ jobs:
             echo "| file | platform |"
             echo "| --- | --- |"
             echo "| \`flipflop.apk\` | Android 8.0+ (minSdk 26) |"
-            echo "| \`flipflop-*-windows-x86_64.zip\` | Windows 10/11 (portable .exe) |"
-            echo "| \`flipflop-*-windows-x86_64-setup.exe\` | Windows installer |"
+            echo "| \`flipflop-*-windows-x86_64-setup.exe\` | Windows 10/11 installer |"
+            echo "| \`flipflop-*-windows-x86_64.zip\` | Windows 10/11 portable .exe (no install) |"
             echo "| \`flipflop-*-linux-x86_64.tar.gz\` | Linux x86_64 |"
             echo "| \`flipflop-*-macos-aarch64.tar.gz\` | macOS (Apple silicon) |"
             echo "| \`flipflop-*-macos-x86_64.tar.gz\` | macOS (Intel) |"
