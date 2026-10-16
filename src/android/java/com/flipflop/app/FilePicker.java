@@ -5,12 +5,14 @@ import android.app.Activity;
 import android.app.Fragment;
 import android.content.ClipData;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import java.io.File;
@@ -107,7 +109,8 @@ public class FilePicker extends Fragment {
                 }
                 // Which URI, and why: the reason alone does not say whether a provider
                 // refused a `content://` URI or a `file://` path was out of reach.
-                throw new IOException(uri + ": " + failure + " [" + report(activity) + "]",
+                throw new IOException(
+                        uri + ": " + failure + " [" + report(activity, resolver, uri) + "]",
                         failure);
             }
         }
@@ -168,10 +171,63 @@ public class FilePicker extends Fragment {
                 refusal = e;
             }
         }
+        // DocumentsUI's "Images"/"Videos" sections hand out media documents, and the
+        // provider behind them refuses some rows MediaStore itself hands over. Try
+        // the same row through MediaStore's own route before giving up.
+        if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
+            try {
+                InputStream in = resolver.openInputStream(asMediaUri(uri));
+                if (in != null) {
+                    return in;
+                }
+            } catch (IOException | RuntimeException e) {
+                if (refusal == null && e instanceof IOException) {
+                    refusal = (IOException) e;
+                }
+            }
+        }
         if (refusal != null) {
             throw refusal;
         }
         throw new FileNotFoundException("no stream for " + uri);
+    }
+
+    /**
+     * `content://com.android.providers.media.documents/document/image:45290` as the
+     * MediaStore row it names (`content://media/external/images/media/45290`).
+     */
+    private static Uri asMediaUri(Uri uri) {
+        String id = DocumentsContract.getDocumentId(uri);
+        int colon = id.indexOf(':');
+        String kind = colon < 0 ? "" : id.substring(0, colon);
+        long row = Long.parseLong(colon < 0 ? id : id.substring(colon + 1));
+        Uri collection = "video".equals(kind)
+                ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                : "audio".equals(kind)
+                        ? MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                        : MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+        return ContentUris.withAppendedId(collection, row);
+    }
+
+    /** Path behind a media document, for a failure report; "" when MediaStore will not say. */
+    private static String mediaPath(ContentResolver resolver, Uri uri) {
+        try {
+            Cursor cursor = resolver.query(
+                    asMediaUri(uri), new String[] {"_data"}, null, null, null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        String path = cursor.getString(0);
+                        return path == null ? "" : path;
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+        } catch (RuntimeException e) {
+            // Not a media document, or MediaStore refuses to say.
+        }
+        return "";
     }
 
     /**
@@ -199,8 +255,11 @@ public class FilePicker extends Fragment {
      * where each read permission stands. "partial" is the Android 14 "select photos"
      * answer, which grants only the photos the user ticked there.
      */
-    private static String report(Activity activity) {
-        StringBuilder report = new StringBuilder("grant=").append(grantedOnResult ? "yes" : "no");
+    private static String report(Activity activity, ContentResolver resolver, Uri uri) {
+        StringBuilder report = new StringBuilder("sdk=")
+                .append(Build.VERSION.SDK_INT)
+                .append(", grant=")
+                .append(grantedOnResult ? "yes" : "no");
         for (String permission : allReadPermissions()) {
             report.append(", ")
                     .append(permission.substring(permission.lastIndexOf('.') + 1))
@@ -209,6 +268,10 @@ public class FilePicker extends Fragment {
                                     == PackageManager.PERMISSION_GRANTED
                             ? "yes"
                             : "no");
+        }
+        String path = mediaPath(resolver, uri);
+        if (!path.isEmpty()) {
+            report.append(", path=").append(path);
         }
         return report.toString();
     }
