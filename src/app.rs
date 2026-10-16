@@ -1,6 +1,7 @@
 use crate::emitter::{MainEmitter, MainQueue};
 use crate::format;
 use crate::guest::{self, Guest};
+use crate::i18n;
 use crate::platform::{self, copy_to_clipboard, open_path, pick_downloads_folder, toast};
 use crate::settings::Settings;
 use crate::transfers::{self, Transfers};
@@ -53,13 +54,13 @@ pub(crate) fn short_id(endpoint_id: &str) -> String {
 }
 
 /// (label, tone) for a history status; tone picks the badge colour.
-fn status_badge(status: TransferStatus) -> (&'static str, &'static str) {
+fn status_badge(status: TransferStatus) -> (String, &'static str) {
     match status {
-        TransferStatus::InProgress => ("In progress", "active"),
-        TransferStatus::Completed => ("Completed", "ok"),
-        TransferStatus::Failed => ("Failed", "error"),
-        TransferStatus::Cancelled => ("Cancelled", "muted"),
-        TransferStatus::Interrupted => ("Interrupted", "warn"),
+        TransferStatus::InProgress => (i18n::tr("In progress"), "active"),
+        TransferStatus::Completed => (i18n::tr("Completed"), "ok"),
+        TransferStatus::Failed => (i18n::tr("Failed"), "error"),
+        TransferStatus::Cancelled => (i18n::tr("Cancelled"), "muted"),
+        TransferStatus::Interrupted => (i18n::tr("Interrupted"), "warn"),
     }
 }
 
@@ -71,16 +72,21 @@ fn row_from_record(record: &TransferRecord) -> HistoryRow {
             .file_names
             .first()
             .cloned()
-            .unwrap_or_else(|| "Transfer".to_string())
+            .unwrap_or_else(|| i18n::tr("Transfer"))
     };
     let title = if title == transfers::PASTE_FILE_NAME {
-        "Pasted text".to_string()
+        i18n::tr("Pasted text")
     } else {
         title
     };
     let mut detail = String::new();
     if record.item_count > 1 {
-        detail.push_str(&format!("{} items", record.item_count));
+        detail.push_str(&i18n::trn(
+            "{n} item",
+            "{n} items",
+            i64::from(record.item_count),
+            &[],
+        ));
     } else if let Some(name) = record.file_names.first() {
         detail.push_str(name);
     }
@@ -91,7 +97,13 @@ fn row_from_record(record: &TransferRecord) -> HistoryRow {
         detail.push_str(path);
     }
     if record.conflict_count > 0 {
-        detail.push_str(&format!(" · {} renamed", record.conflict_count));
+        detail.push_str(" · ");
+        detail.push_str(&i18n::trn(
+            "{n} renamed",
+            "{n} renamed",
+            i64::from(record.conflict_count),
+            &[],
+        ));
     }
     let (status, tone) = status_badge(record.status);
 
@@ -148,7 +160,7 @@ fn request_row(id: &str, name: &str) -> PeerRow {
         endpoint_id: id.to_string().into(),
         initials: initials(name).into(),
         name: name.to_string().into(),
-        detail: "wants to pair with you".into(),
+        detail: i18n::tr("wants to pair with you").into(),
         online: true,
         is_request: true,
         ..Default::default()
@@ -167,9 +179,9 @@ fn nearby_row(n: &crate::engine::NearbyDevice) -> PeerRow {
         initials: initials(&name).into(),
         name: name.into(),
         detail: if n.identified {
-            "Found on your local network".into()
+            i18n::tr("Found on your local network").into()
         } else {
-            "On your local network (unidentified)".into()
+            i18n::tr("On your local network (unidentified)").into()
         },
         online: true,
         is_suggestion: true,
@@ -236,15 +248,20 @@ pub(crate) fn refresh_peers(ctx: &AppCtx) {
             // have changed); fall back to the first peer when nothing is
             // selected or the selected peer is gone.
             let selected = state.get_selected_id();
-            let current = rows
-                .iter()
-                .find(|r| r.endpoint_id == selected)
-                .or(rows.first());
+            let current = rows.iter().find(|r| r.endpoint_id == selected).or(rows.first());
             let selection_changed = current.is_none_or(|r| r.endpoint_id != selected);
             show_selected(&state, current);
             state.set_peers(ModelRc::from(Rc::new(VecModel::from(rows))));
             transfers::sync_peer_activity(&ui);
-            state.set_presence_label(format!("{online_count} of {} online", devices.len()).into());
+            state.set_presence_label(
+                i18n::trn(
+                    "{n} of {} online",
+                    "{n} of {} online",
+                    online_count as i64,
+                    &[&devices.len().to_string()],
+                )
+                .into(),
+            );
             state.set_my_name(my_name.into());
             state.set_node_ready(ready);
             match ticket {
@@ -405,6 +422,31 @@ fn settings_from_state(state: &State<'_>) -> Settings {
             _ => "system",
         }
         .to_string(),
+        language: language_setting(state.get_language()),
+    }
+}
+
+/// The `settings.json` value for the language combo box: 0 follows the system locale,
+/// 1 is English, and the rest are the bundled languages in `i18n`'s order.
+fn language_setting(index: i32) -> String {
+    match index {
+        1 => "en".to_string(),
+        2.. => i18n::bundled_languages()
+            .get((index - 2) as usize)
+            .map_or_else(|| "system".to_string(), |language| (*language).to_string()),
+        _ => "system".to_string(),
+    }
+}
+
+/// Inverse of `language_setting`.
+fn language_index(setting: &str) -> i32 {
+    match setting {
+        "en" => 1,
+        "" | "system" => 0,
+        other => i18n::bundled_languages()
+            .iter()
+            .position(|language| *language == other)
+            .map_or(0, |index| index as i32 + 2),
     }
 }
 
@@ -448,6 +490,7 @@ fn settings_into_state(state: &State<'_>, s: &Settings) {
         "dark" => 2,
         _ => 0,
     });
+    state.set_language(language_index(&s.language));
 }
 
 // --------------------------------------------------- node event routing
@@ -459,7 +502,7 @@ fn handle_main_event(ctx: &AppCtx, name: &str, payload: Option<&str>) {
         "device-node-network-ready" => {
             if let Some(ui) = ctx.weak.upgrade() {
                 ui.global::<State>().set_node_ready(true);
-                toast(&ui, "Network ready", false);
+                toast(&ui, &i18n::tr("Network ready"), false);
             }
             transfers::retry_waiting(ctx, None);
             sync_pairing_window(ctx);
@@ -468,7 +511,7 @@ fn handle_main_event(ctx: &AppCtx, name: &str, payload: Option<&str>) {
         "device-node-network-warming" => {
             if let Some(ui) = ctx.weak.upgrade() {
                 ui.global::<State>().set_node_ready(false);
-                toast(&ui, "Connecting to network…", false);
+                toast(&ui, &i18n::tr("Connecting to network…"), false);
             }
         }
         "relay-fell-back" => {
@@ -478,7 +521,11 @@ fn handle_main_event(ctx: &AppCtx, name: &str, payload: Option<&str>) {
                     .and_then(|v| v.get("reason"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("unreachable relay");
-                toast(&ui, &format!("Relay fell back to public: {reason}"), true);
+                toast(
+                    &ui,
+                    &i18n::tr_args("Relay fell back to public: {}", &[&i18n::tr(reason)]),
+                    true,
+                );
             }
         }
         "device-paired" => {
@@ -493,7 +540,7 @@ fn handle_main_event(ctx: &AppCtx, name: &str, payload: Option<&str>) {
                 .and_then(|v| v.as_str())
                 .map(str::to_lowercase);
             if let Some(ui) = ctx.weak.upgrade() {
-                toast(&ui, &format!("Paired with {who}"), false);
+                toast(&ui, &i18n::tr_args("Paired with {}", &[&who]), false);
                 // Open the new peer's page; the refresh below fills in its
                 // details and keeps it selected.
                 if let Some(id) = id {
@@ -565,7 +612,7 @@ fn handle_main_event(ctx: &AppCtx, name: &str, payload: Option<&str>) {
                 if let Some(ui) = ctx.weak.upgrade() {
                     toast(
                         &ui,
-                        &format!("{sender} wants to pair. See “Add a peer”"),
+                        &i18n::tr_args("{} wants to pair. See “Add a peer”", &[&sender]),
                         false,
                     );
                 }
@@ -587,7 +634,11 @@ fn handle_main_event(ctx: &AppCtx, name: &str, payload: Option<&str>) {
                     .and_then(|v| v.as_str())
                     .unwrap_or("that device");
                 if let Some(ui) = ctx.weak.upgrade() {
-                    toast(&ui, &format!("{who} declined your pair request"), true);
+                    toast(
+                        &ui,
+                        &i18n::tr_args("{} declined your pair request", &[&i18n::tr(who)]),
+                        true,
+                    );
                 }
             }
         }
@@ -650,13 +701,13 @@ fn start_node(ctx: &AppCtx) {
                 let weak = ctx_bg.weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak.upgrade() {
-                        toast(&ui, "Connected, peering is live", false);
+                        toast(&ui, &i18n::tr("Connected, peering is live"), false);
                     }
                 });
             }
             Err(e) => {
                 tracing::error!("failed to start node service: {e}");
-                let msg = format!("Node start failed: {e}");
+                let msg = i18n::tr_args("Node start failed: {}", &[&e.to_string()]);
                 let weak = ctx_bg.weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak.upgrade() {
@@ -749,13 +800,13 @@ fn confirm_rename(ctx: &AppCtx) {
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak.upgrade() {
                         ui.global::<State>().set_rename_mode(false);
-                        toast(&ui, "Peer renamed", false);
+                        toast(&ui, &i18n::tr("Peer renamed"), false);
                         refresh_peers(&ctx_done);
                     }
                 });
             }
             Err(e) => {
-                let msg = format!("Rename failed: {e}");
+                let msg = i18n::tr_args("Rename failed: {}", &[&e.to_string()]);
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak.upgrade() {
                         toast(&ui, &msg, true);
@@ -845,7 +896,7 @@ fn register_peers(ctx: &AppCtx) {
                             Vec::<HistoryRow>::new(),
                         ))));
                         drop(state);
-                        toast(&ui, &format!("Forgot {name}"), false);
+                        toast(&ui, &i18n::tr_args("Forgot {}", &[&name]), false);
                         refresh_peers(&ctx_bg);
                     }
                 });
@@ -878,7 +929,7 @@ fn register_add_peer(ctx: &AppCtx) {
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = weak.upgrade() {
                             let s = ui.global::<State>();
-                            s.set_pairing_status("Paste an address first".into());
+                            s.set_pairing_status(i18n::tr("Paste an address first").into());
                             s.set_pairing_error(true);
                         }
                     });
@@ -904,7 +955,7 @@ fn register_add_peer(ctx: &AppCtx) {
                             if let Some(ui) = weak2.upgrade() {
                                 let s = ui.global::<State>();
                                 s.set_pairing_busy(false);
-                                s.set_pairing_status("Peer added".into());
+                                s.set_pairing_status(i18n::tr("Peer added").into());
                                 s.set_pairing_error(false);
                                 s.set_add_ticket_input("".into());
                             }
@@ -916,7 +967,7 @@ fn register_add_peer(ctx: &AppCtx) {
                         });
                     }
                     Err(e) => {
-                        let msg = format!("Could not pair: {e}");
+                        let msg = i18n::tr_args("Could not pair: {}", &[&e.to_string()]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = weak.upgrade() {
                                 let s = ui.global::<State>();
@@ -967,13 +1018,16 @@ fn register_add_peer(ctx: &AppCtx) {
                     match node.request_nearby_pair(&id).await {
                         Ok(true) => (
                             true,
-                            "Pair request sent, waiting for them to accept".to_string(),
+                            i18n::tr("Pair request sent, waiting for them to accept"),
                         ),
                         Ok(false) => (
                             false,
-                            "Couldn't reach them. Are you on the same network?".to_string(),
+                            i18n::tr("Couldn't reach them. Are you on the same network?"),
                         ),
-                        Err(e) => (false, format!("Could not pair: {e}")),
+                        Err(e) => (
+                            false,
+                            i18n::tr_args("Could not pair: {}", &[&e.to_string()]),
+                        ),
                     }
                 };
 
@@ -1023,8 +1077,16 @@ fn register_add_peer(ctx: &AppCtx) {
                 return;
             }
             match copy_to_clipboard(&ticket) {
-                Ok(()) => toast(&ui, "Invite copied. Share it with your peer", false),
-                Err(e) => toast(&ui, &format!("Copy failed: {e}"), true),
+                Ok(()) => toast(
+                    &ui,
+                    &i18n::tr("Invite copied. Share it with your peer"),
+                    false,
+                ),
+                Err(e) => toast(
+                    &ui,
+                    &i18n::tr_args("Copy failed: {}", &[&e.to_string()]),
+                    true,
+                ),
             }
         });
     }
@@ -1055,7 +1117,7 @@ fn register_history(ctx: &AppCtx) {
                 if running {
                     platform::toast_later(
                         &ctx_bg.weak,
-                        "That transfer is still running. Stop it first.",
+                        &i18n::tr("That transfer is still running. Stop it first."),
                         true,
                     );
                     return;
@@ -1083,25 +1145,33 @@ fn register_history(ctx: &AppCtx) {
         let ctx = ctx.clone();
         logic.on_open_row(move |id: SharedString| {
             let ctx_bg = ctx.clone();
-            ctx.rt.spawn_blocking(move || match row_target(&ctx_bg, &id) {
-                Some(RowTarget::Text(text)) => {
-                    if let Some(url) = transfers::as_link(&text) {
-                        platform::open_url(url);
-                        return;
-                    }
-                    #[cfg(target_os = "android")]
-                    platform::share_text(&text);
-                    #[cfg(not(target_os = "android"))]
-                    let _ = ctx_bg.weak.upgrade_in_event_loop(move |ui| {
-                        match copy_to_clipboard(&text) {
-                            Ok(()) => toast(&ui, "Text copied", false),
-                            Err(e) => toast(&ui, &format!("Could not copy: {e}"), true),
+            ctx.rt
+                .spawn_blocking(move || match row_target(&ctx_bg, &id) {
+                    Some(RowTarget::Text(text)) => {
+                        if let Some(url) = transfers::as_link(&text) {
+                            platform::open_url(url);
+                            return;
                         }
-                    });
-                }
-                Some(RowTarget::Path(path)) => open_path(&path.to_string_lossy()),
-                None => platform::toast_later(&ctx_bg.weak, "The files are gone", true),
-            });
+                        #[cfg(target_os = "android")]
+                        platform::share_text(&text);
+                        #[cfg(not(target_os = "android"))]
+                        let _ =
+                            ctx_bg.weak.upgrade_in_event_loop(move |ui| {
+                                match copy_to_clipboard(&text) {
+                                    Ok(()) => toast(&ui, &i18n::tr("Text copied"), false),
+                                    Err(e) => toast(
+                                        &ui,
+                                        &i18n::tr_args("Could not copy: {}", &[&e.to_string()]),
+                                        true,
+                                    ),
+                                }
+                            });
+                    }
+                    Some(RowTarget::Path(path)) => open_path(&path.to_string_lossy()),
+                    None => {
+                        platform::toast_later(&ctx_bg.weak, &i18n::tr("The files are gone"), true)
+                    }
+                });
         });
     }
     {
@@ -1109,15 +1179,18 @@ fn register_history(ctx: &AppCtx) {
         let ctx = ctx.clone();
         logic.on_share_row(move |id: SharedString| {
             let ctx_bg = ctx.clone();
-            ctx.rt.spawn_blocking(move || match row_target(&ctx_bg, &id) {
-                #[cfg(target_os = "android")]
-                Some(RowTarget::Text(text)) => platform::share_text(&text),
-                #[cfg(target_os = "android")]
-                Some(RowTarget::Path(path)) => platform::share_path(&path),
-                #[cfg(not(target_os = "android"))]
-                Some(_) => {}
-                None => platform::toast_later(&ctx_bg.weak, "The files are gone", true),
-            });
+            ctx.rt
+                .spawn_blocking(move || match row_target(&ctx_bg, &id) {
+                    #[cfg(target_os = "android")]
+                    Some(RowTarget::Text(text)) => platform::share_text(&text),
+                    #[cfg(target_os = "android")]
+                    Some(RowTarget::Path(path)) => platform::share_path(&path),
+                    #[cfg(not(target_os = "android"))]
+                    Some(_) => {}
+                    None => {
+                        platform::toast_later(&ctx_bg.weak, &i18n::tr("The files are gone"), true)
+                    }
+                });
         });
     }
 }
@@ -1187,6 +1260,16 @@ fn save_settings(ctx: &AppCtx) {
         &new.discovery_dns_origin,
     );
     let visibility_changed = old.discoverability != new.discoverability;
+    let language_changed = old.language != new.language;
+
+    if language_changed {
+        i18n::apply(&new.language);
+        // Slint's own @tr strings re-evaluate themselves; the ones Rust formatted
+        // into the lists and details below have to be rebuilt.
+        refresh_peers(ctx);
+        refresh_suggestions(ctx);
+        refresh_history(ctx);
+    }
 
     let path = ctx.settings_path.clone();
     let shared = ctx.settings.clone();
@@ -1204,7 +1287,7 @@ fn save_settings(ctx: &AppCtx) {
             match result {
                 Ok(()) => state.set_settings_status("".into()),
                 Err(e) => {
-                    let msg = format!("Could not save settings: {e}");
+                    let msg = i18n::tr_args("Could not save settings: {}", &[&e.to_string()]);
                     state.set_settings_status(msg.clone().into());
                     toast(&ui, &msg, true);
                 }
@@ -1314,10 +1397,9 @@ fn test_discovery(ctx: &AppCtx) {
             s.set_discovery_test_failed(result.is_err());
             let msg = match result {
                 Ok(resp) => match resp.url {
-                    Some(url) => format!(
-                        "Discovery server reachable: {url} ({}ms)",
-                        resp.latency_ms
-                    ),
+                    Some(url) => {
+                        format!("Discovery server reachable: {url} ({}ms)", resp.latency_ms)
+                    }
                     None => format!("Reachable ({}ms)", resp.latency_ms),
                 },
                 Err(e) => format!("Discovery check failed: {e}"),
@@ -1380,13 +1462,13 @@ fn register_settings(ctx: &AppCtx) {
                                 state.set_my_name(info.display_name.clone().into());
                                 state.set_name_input(info.display_name.into());
                                 state.set_name_editing(false);
-                                toast(&ui, "Device name saved", false);
+                                toast(&ui, &i18n::tr("Device name saved"), false);
                             }
                         });
                         refresh_peers(&ctx_bg2);
                     }
                     Err(e) => {
-                        let msg = format!("Could not set name: {e}");
+                        let msg = i18n::tr_args("Could not set name: {}", &[&e.to_string()]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = weak.upgrade() {
                                 toast(&ui, &msg, true);
@@ -1415,9 +1497,11 @@ fn register_settings(ctx: &AppCtx) {
         let save_timer = save_timer.clone();
         logic.on_settings_edited(move || {
             let ctx = ctx.clone();
-            save_timer.start(slint::TimerMode::SingleShot, SETTINGS_EDIT_DELAY, move || {
-                save_settings(&ctx)
-            });
+            save_timer.start(
+                slint::TimerMode::SingleShot,
+                SETTINGS_EDIT_DELAY,
+                move || save_settings(&ctx),
+            );
         });
     }
 
@@ -1480,8 +1564,17 @@ pub fn run() {
     }
 
     let ui = AppWindow::new().expect("failed to create AppWindow");
+    // Android renders every CJK character as a box unless the fallbacks its font
+    // backend drops are put back (see src/fonts.rs). Creating the window is what
+    // brings up the font collection, so do it here — before anything is shown, and
+    // before any text is shaped and cached without the fallbacks.
+    #[cfg(target_os = "android")]
+    crate::fonts::install_cjk_fallback();
     let state = ui.global::<State>();
     settings_into_state(&state, &settings.lock().unwrap());
+    // After the window exists (Slint learns about the bundled catalogs from the
+    // generated component code) and before anything is shown.
+    i18n::apply(&settings.lock().unwrap().language);
     state.set_my_name("…".into());
     // Responsive layout flags: single-pane + bottom nav on touch devices.
     state.set_touch(platform::TOUCH);
@@ -1518,13 +1611,11 @@ pub fn run() {
             // Shared text goes into the send card's text box, like a paste.
             let what = if let Some(text) = text {
                 ui.global::<State>().set_paste_input(text.trim().into());
-                "Text".to_string()
+                i18n::tr("Text")
             } else if staged.is_empty() {
                 return;
-            } else if staged.len() == 1 {
-                "1 file".to_string()
             } else {
-                format!("{} files", staged.len())
+                i18n::trn("{n} file", "{n} files", staged.len() as i64, &[])
             };
             // Picked files: the user is already on the send card, which
             // lists them.
@@ -1537,7 +1628,7 @@ pub fn run() {
             sync_pairing_window(&ctx_shared);
             toast(
                 &ui,
-                &format!("{what} ready. Pick a peer to send to"),
+                &i18n::tr_args("{} ready. Pick a peer to send to", &[&what]),
                 false,
             );
         });
@@ -1683,9 +1774,9 @@ fn register_app_picker(ctx: &AppCtx) {
             if app.split {
                 toast(
                     &ui,
-                    &format!(
+                    &i18n::tr_args(
                         "{} is split into several APKs; only the base APK is sent, which may not install on its own.",
-                        app.label
+                        &[&app.label],
                     ),
                     false,
                 );
@@ -1771,4 +1862,3 @@ mod tests {
         assert!(row.can_open);
     }
 }
-

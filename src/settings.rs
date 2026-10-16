@@ -20,6 +20,9 @@ pub struct Settings {
     pub discoverability: String,
     /// "system" | "light" | "dark"
     pub theme: String,
+    /// "system" (follow the OS locale) | "en" | any bundled language code,
+    /// e.g. "zh-CN". See src/i18n.rs.
+    pub language: String,
 }
 
 impl Default for Settings {
@@ -36,6 +39,7 @@ impl Default for Settings {
             history_enabled: true,
             discoverability: "everyone".to_string(),
             theme: "system".to_string(),
+            language: "system".to_string(),
         }
     }
 }
@@ -200,7 +204,10 @@ mod tests {
     #[test]
     fn partial_files_fill_in_defaults() {
         let s: Settings = serde_json::from_str(r#"{"relay_mode":"disabled"}"#).unwrap();
-        assert!(matches!(s.relay_mode(), crate::engine::RelayModeOption::Disabled));
+        assert!(matches!(
+            s.relay_mode(),
+            crate::engine::RelayModeOption::Disabled
+        ));
         assert_eq!(s.relay_fallback, "strict");
         assert!(s.history_enabled);
     }

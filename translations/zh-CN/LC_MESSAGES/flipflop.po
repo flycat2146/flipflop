@@ -1,0 +1,577 @@
+# Simplified Chinese (zh-CN) for flipflop.
+#
+# Slot in: translations/<lang>/LC_MESSAGES/flipflop.po (see build.rs). The msgids are
+# the English source strings, as written in @tr(...) in src/ui/*.slint and in
+# i18n::tr(...)/i18n::tr_args(...)/i18n::trn(...) in src/*.rs; `{}` and `{n}` are the
+# placeholders those calls fill in. The catalog is compiled in: no files are shipped
+# next to the binary, and the language is picked in Settings or from the system locale.
+msgid ""
+msgstr ""
+"Project-Id-Version: flipflop\n"
+"Language: zh-CN\n"
+"Language-Team: zh-CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# ---------------------------------------------------------------- interface
+
+msgid "Accept"
+msgstr "接受"
+
+msgid "Add a peer"
+msgstr "添加设备"
+
+msgid "Add peer"
+msgstr "添加设备"
+
+msgid "App"
+msgstr "应用"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Auth token (optional)"
+msgstr "认证令牌（可选）"
+
+msgid "Available once connected…"
+msgstr "连接成功后可用…"
+
+msgid "Browse…"
+msgstr "浏览…"
+
+msgid "Browser connected"
+msgstr "浏览器已连接"
+
+msgid "Browser link"
+msgstr "浏览器链接"
+
+msgid "Browser link open"
+msgstr "浏览器链接已开启"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Choose a peer"
+msgstr "选择一台设备"
+
+msgid "Clear"
+msgstr "清空"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Close link"
+msgstr "关闭链接"
+
+msgid "Close the browser link"
+msgstr "关闭浏览器链接"
+
+msgid "Connect"
+msgstr "连接"
+
+msgid "Connect with an address"
+msgstr "通过地址连接"
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Connecting…"
+msgstr "连接中…"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Custom pkarr relay"
+msgstr "自定义 pkarr 中继"
+
+msgid "Custom relays"
+msgstr "自定义中继"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Decline"
+msgstr "拒绝"
+
+msgid "Default (n0)"
+msgstr "默认（n0）"
+
+msgid "Default (n0 public relays)"
+msgstr "默认（n0 公共中继）"
+
+msgid "Device name"
+msgstr "设备名称"
+
+msgid "Disabled (direct connections only)"
+msgstr "禁用（仅直连）"
+
+msgid "Discovery"
+msgstr "节点发现"
+
+msgid "Dismiss"
+msgstr "移除"
+
+msgid "DNS origin (optional)"
+msgstr "DNS 源（可选）"
+
+msgid "Edit"
+msgstr "编辑"
+
+msgid "Everyone nearby"
+msgstr "附近所有人"
+
+msgid "Fail the transfer (strict)"
+msgstr "传输失败（严格）"
+
+msgid "Fall back to public relays"
+msgstr "回退到公共中继"
+
+msgid "Files"
+msgstr "文件"
+
+msgid "Forget"
+msgstr "移除"
+
+msgid "Forget {}? You'll need to pair again to exchange files."
+msgstr "移除 {}？之后需要重新配对才能互传文件。"
+
+msgid "Forget this peer"
+msgstr "移除此设备"
+
+msgid "Hide QR"
+msgstr "隐藏二维码"
+
+msgid "History"
+msgstr "传输记录"
+
+msgid "If the relay is unreachable"
+msgstr "中继不可达时"
+
+msgid "Keep a transfer history"
+msgstr "保留传输记录"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Link open"
+msgstr "链接已开启"
+
+msgid "Loading apps…"
+msgstr "正在加载应用…"
+
+msgid "Looking for devices…"
+msgstr "正在搜索设备…"
+
+msgid "Nearby and requests"
+msgstr "附近设备与配对请求"
+
+msgid "No app matches."
+msgstr "没有匹配的应用。"
+
+msgid "No flipflop on their device?"
+msgstr "对方设备上没有 flipflop？"
+
+msgid "No installed apps to send."
+msgstr "没有可发送的已安装应用。"
+
+msgid "No local network found. Connect to Wi-Fi or turn on your hotspot."
+msgstr "未找到局域网。请连接 Wi-Fi 或开启热点。"
+
+msgid "No peers yet. Add one to start sending."
+msgstr "还没有设备。添加一台就能开始传输。"
+
+msgid "No transfers with {} yet."
+msgstr "与 {} 还没有传输记录。"
+
+msgid "Nobody (hidden)"
+msgstr "所有人（隐身）"
+
+msgid "Not working? Try another address"
+msgstr "打不开？换一个地址试试"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Open"
+msgstr "打开"
+
+msgid "Open a temporary browser link: they send and receive files from any browser on the same Wi-Fi, no app needed."
+msgstr "打开一个临时浏览器链接：对方在同一 Wi-Fi 下用任意浏览器就能收发文件，无需安装应用。"
+
+msgid "Open browser link"
+msgstr "打开浏览器链接"
+
+msgid "Open it in any browser on the same Wi-Fi (or your hotspot). Whoever has the link can send and receive here until you close it."
+msgstr "在同一 Wi-Fi（或你的热点）下用任意浏览器打开即可。拿到链接的人在你关闭之前都能在这里收发文件。"
+
+msgid "Pair"
+msgstr "配对"
+
+msgid "Pair your first device"
+msgstr "配对你的第一台设备"
+
+msgid "Paired devices only"
+msgstr "仅已配对设备"
+
+msgid "Pairing address"
+msgstr "配对地址"
+
+msgid "Paste"
+msgstr "粘贴"
+
+msgid "Peer name"
+msgstr "设备名称"
+
+msgid "Peers"
+msgstr "设备"
+
+msgid "Picture"
+msgstr "图片"
+
+msgid "pkarr relay URL"
+msgstr "pkarr 中继 URL"
+
+msgid "Point the camera at the QR code on the other device."
+msgstr "把摄像头对准另一台设备上的二维码。"
+
+msgid "QR code"
+msgstr "二维码"
+
+msgid "Queued: {}"
+msgstr "排队中：{}"
+
+msgid "Received files"
+msgstr "接收的文件"
+
+msgid "Receiving {}"
+msgstr "接收中 {}"
+
+msgid "Receiving…"
+msgstr "接收中…"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Relay"
+msgstr "中继"
+
+msgid "Relay URLs"
+msgstr "中继 URL"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Save to"
+msgstr "保存到"
+
+msgid "Scan a QR code"
+msgstr "扫描二维码"
+
+msgid "Scan QR code"
+msgstr "扫描二维码"
+
+msgid "Search apps"
+msgstr "搜索应用"
+
+msgid "Send"
+msgstr "发送"
+
+msgid "Send an app"
+msgstr "发送应用"
+
+msgid "Send to {}"
+msgstr "发送到 {}"
+
+msgid "Sending {}"
+msgstr "发送中 {}"
+
+msgid "Sending and receiving…"
+msgstr "正在发送和接收…"
+
+msgid "Sending…"
+msgstr "发送中…"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Show browser link"
+msgstr "显示浏览器链接"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "System"
+msgstr "跟随系统"
+
+msgid "The page stops working; nothing is remembered."
+msgstr "页面将无法使用，也不会保留任何内容。"
+
+msgid "This device"
+msgstr "本机"
+
+msgid "Token"
+msgstr "令牌"
+
+msgid "Type or paste text…"
+msgstr "输入或粘贴文本…"
+
+msgid "Who can see you"
+msgstr "谁可以发现你"
+
+msgid "Your address"
+msgstr "你的地址"
+
+msgid "{n} file attached"
+msgid_plural "{n} files attached"
+msgstr[0] "{n} 个文件已附加"
+
+msgid "{n} file ready to send"
+msgid_plural "{n} files ready to send"
+msgstr[0] "{n} 个文件待发送"
+
+# --------------------------------------------------- statuses and messages
+
+msgid "A queued send was dropped: its files are gone"
+msgstr "有一个排队中的发送已放弃：文件已不存在"
+
+msgid "Accepting…"
+msgstr "接受中…"
+
+msgid "Cancelled"
+msgstr "已取消"
+
+msgid "Cancelling…"
+msgstr "正在取消…"
+
+msgid "Choose downloads folder"
+msgstr "选择下载文件夹"
+
+msgid "Choose files to send"
+msgstr "选择要发送的文件"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Connected, peering is live"
+msgstr "已连接，点对点通道已建立"
+
+msgid "Connecting to network…"
+msgstr "正在连接网络…"
+
+msgid "Contacting peer…"
+msgstr "正在联系对端…"
+
+msgid "Copy failed: {}"
+msgstr "复制失败：{}"
+
+msgid "Could not accept files from {}: {}"
+msgstr "无法接收来自 {} 的文件：{}"
+
+msgid "Could not copy: {}"
+msgstr "复制失败：{}"
+
+msgid "Could not pair: {}"
+msgstr "配对失败：{}"
+
+msgid "Could not prepare the text: {}"
+msgstr "无法准备文本：{}"
+
+msgid "Could not read the files: {}"
+msgstr "无法读取文件：{}"
+
+msgid "Could not save settings: {}"
+msgstr "保存设置失败：{}"
+
+msgid "Could not start share: {}"
+msgstr "无法开始分享：{}"
+
+msgid "Could not set name: {}"
+msgstr "设置设备名称失败：{}"
+
+msgid "Rename failed: {}"
+msgstr "重命名失败：{}"
+
+msgid "unreachable relay"
+msgstr "中继不可达"
+
+msgid "Couldn't reach them. Are you on the same network?"
+msgstr "无法连接到对方。你们在同一网络吗？"
+
+msgid "Delivered, waiting for {} to download…"
+msgstr "已送达，等待 {} 下载…"
+
+msgid "Device name saved"
+msgstr "设备名称已保存"
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "Files from {} saved"
+msgstr "来自 {} 的文件已保存"
+
+msgid "Forgot {}"
+msgstr "已移除 {}"
+
+msgid "In progress"
+msgstr "进行中"
+
+msgid "Interrupted"
+msgstr "已中断"
+
+msgid "Invite copied. Share it with your peer"
+msgstr "邀请已复制，分享给对端即可"
+
+msgid "Network ready"
+msgstr "网络已就绪"
+
+msgid "Node start failed: {}"
+msgstr "节点启动失败：{}"
+
+msgid "Or pick a folder"
+msgstr "或者选择文件夹"
+
+msgid "Pair request sent, waiting for them to accept"
+msgstr "配对请求已发送，等待对方接受"
+
+msgid "Paired with {}"
+msgstr "已与 {} 配对"
+
+msgid "Paste an address first"
+msgstr "请先粘贴地址"
+
+msgid "Peer added"
+msgstr "设备已添加"
+
+msgid "Peer connected, transferring…"
+msgstr "对端已连接，传输中…"
+
+msgid "Peer renamed"
+msgstr "设备已重命名"
+
+msgid "Preparing…"
+msgstr "准备中…"
+
+msgid "Receive cancelled"
+msgstr "接收已取消"
+
+msgid "Receive from {} failed: {}"
+msgstr "接收来自 {} 的文件失败：{}"
+
+msgid "Received"
+msgstr "已接收"
+
+msgid "Relay fell back to public: {}"
+msgstr "中继已回退到公共中继：{}"
+
+msgid "Saved to {}"
+msgstr "已保存到 {}"
+
+msgid "Send cancelled"
+msgstr "发送已取消"
+
+msgid "Send stopped"
+msgstr "发送已停止"
+
+msgid "Sent"
+msgstr "已发送"
+
+msgid "Sent to {}"
+msgstr "已发送到 {}"
+
+msgid "Some queued sends were dropped: their files are gone"
+msgstr "有排队中的发送已放弃：文件已不存在"
+
+msgid "Still connecting. Try again in a moment."
+msgstr "仍在连接中，请稍后再试。"
+
+msgid "Text"
+msgstr "文本"
+
+msgid "Text copied"
+msgstr "文本已复制"
+
+msgid "Text from {}"
+msgstr "来自 {} 的文本"
+
+msgid "That transfer is still running. Stop it first."
+msgstr "该传输仍在进行中，请先停止。"
+
+msgid "The clipboard has no text"
+msgstr "剪贴板里没有文本"
+
+msgid "The files are gone"
+msgstr "文件已不存在"
+
+msgid "Transfer"
+msgstr "传输"
+
+msgid "Transfer interrupted. The peer can retry while this stays open."
+msgstr "传输已中断。只要这条记录还在，对端就可以重试。"
+
+msgid "Transferring…"
+msgstr "传输中…"
+
+msgid "Waiting for {} to come online"
+msgstr "等待 {} 上线"
+
+msgid "{} declined your pair request"
+msgstr "{} 拒绝了你的配对请求"
+
+msgid "{} is sending you files"
+msgstr "{} 正在向你发送文件"
+
+msgid "{} is split into several APKs; only the base APK is sent, which may not install on its own."
+msgstr "{} 被拆分成多个 APK，这里只发送基础 APK，可能无法单独安装。"
+
+msgid "{} ready. Pick a peer to send to"
+msgstr "{} 已准备好，请选择要发送的设备"
+
+msgid "{} wants to pair. See “Add a peer”"
+msgstr "{} 想要与你配对，请到“添加设备”查看"
+
+msgid "{}% · {} of {}"
+msgstr "{}% · {} / {}"
+
+msgid "{n} file"
+msgid_plural "{n} files"
+msgstr[0] "{n} 个文件"
+
+msgid "{n} file renamed to avoid overwriting"
+msgid_plural "{n} files renamed to avoid overwriting"
+msgstr[0] "{n} 个文件已重命名，以免覆盖"
+
+msgid "{n} item"
+msgid_plural "{n} items"
+msgstr[0] "{n} 个项目"
+
+msgid "{n} of {} online"
+msgstr "{} 台中有 {n} 台在线"
+
+msgid "{n} renamed"
+msgstr "已重命名 {n} 个"
+
+msgid "Pasted text"
+msgstr "粘贴的文本"
+
+msgid "that device"
+msgstr "该设备"
+
+msgid "wants to pair with you"
+msgstr "想要与你配对"
+
+msgid "Found on your local network"
+msgstr "在局域网中发现"
+
+msgid "On your local network (unidentified)"
+msgstr "在局域网中（未识别）"

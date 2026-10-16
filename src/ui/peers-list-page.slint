@@ -46,11 +46,11 @@ component PeerListItem inherits Rectangle {
                 overflow: elide;
             }
             Text {
-                text: root.peer.sending && root.peer.receiving ? "Sending and receiving…"
-                    : root.peer.sending ? "Sending…"
-                    : root.peer.receiving ? "Receiving…"
-                    : root.peer.guest ? (root.peer.online ? "Browser connected" : "Browser link open")
-                    : root.peer.online ? "Online" : "Offline";
+                text: root.peer.sending && root.peer.receiving ? @tr("Sending and receiving…")
+                    : root.peer.sending ? @tr("Sending…")
+                    : root.peer.receiving ? @tr("Receiving…")
+                    : root.peer.guest ? (root.peer.online ? @tr("Browser connected") : @tr("Browser link open"))
+                    : root.peer.online ? @tr("Online") : @tr("Offline");
                 color: root.peer.sending ? Theme.warn
                     : root.peer.receiving ? Theme.info
                     : root.peer.online ? Theme.online : Theme.text-muted;
@@ -82,7 +82,7 @@ export component PeersListPage inherits Rectangle {
             alignment: start;
 
             PageTitle {
-                title: "Peers";
+                title: @tr("Peers");
                 subtitle: State.peers.length == 0 ? "" : State.presence-label;
             }
 

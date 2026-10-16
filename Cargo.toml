@@ -27,6 +27,9 @@ path = "src/examples/probe_custom_relay.rs"
 
 [build-dependencies]
 slint-build = "=1.18.1"
+# Reads translations/*/LC_MESSAGES/*.po to generate the table src/i18n.rs looks
+# strings up in (the same .po files Slint bundles for @tr).
+rspolib = "0.1.2"
 # Compiles android/java into a dex for Android builds (as Slint does).
 android-build = "0.1"
 
@@ -40,6 +43,8 @@ tokio = { version = "1.34.0", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "5"
+# The system locale, to pick the translation to start in (Slint uses the same).
+sys-locale = "0.3"
 chrono = "0.4"
 # unstable-custom-transports: Bluetooth (see native/bluetooth.rs). Not covered by
 # semver, so iroh updates may need adapting it.
@@ -67,7 +72,12 @@ uuid = { version = "1", features = ["v4"] }
 # =1.17.1` that was never published to crates.io. Not 1.16.x: its Flickable
 # grows its scroll clamp height to the Android IME inset (the nav bar, even
 # with no keyboard up), so ScrollViews stop short of the bottom.
-slint = { version = "=1.18.1", features = ["backend-android-activity-06"] }
+slint = { version = "=1.18.1", features = [
+    "backend-android-activity-06",
+    # Handles on Slint's font collection, so src/fonts.rs can restore the CJK
+    # fallbacks the Android font backend loses.
+    "unstable-fontique-011",
+] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 qrcode = { version = "0.14.1", default-features = false }

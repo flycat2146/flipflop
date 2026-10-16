@@ -88,7 +88,7 @@ component HistoryItem inherits Rectangle {
             if root.entry.can-open && !State.touch: VerticalLayout {
                 alignment: center;
                 GhostButton {
-                    label: "Open";
+                    label: @tr("Open");
                     icon: Icons.open;
                     clicked => { Logic.open-row(root.entry.id); }
                 }
@@ -124,8 +124,9 @@ component TransferCard inherits Card {
                 horizontal-stretch: 1;
 
                 Text {
-                    text: (root.transfer.waiting ? "Queued: " : root.transfer.sending ? "Sending " : "Receiving ")
-                        + root.transfer.title;
+                    text: root.transfer.waiting ? @tr("Queued: {}", root.transfer.title)
+                        : root.transfer.sending ? @tr("Sending {}", root.transfer.title)
+                        : @tr("Receiving {}", root.transfer.title);
                     color: Theme.text-strong;
                     font-weight: 650;
                     overflow: elide;
@@ -141,7 +142,7 @@ component TransferCard inherits Card {
             VerticalLayout {
                 alignment: center;
                 if root.transfer.active: SecondaryButton {
-                    label: root.transfer.sending && !root.transfer.waiting ? "Stop" : "Cancel";
+                    label: root.transfer.sending && !root.transfer.waiting ? @tr("Stop") : @tr("Cancel");
                     clicked => {
                         if root.transfer.sending {
                             Logic.stop-share(root.transfer.key);
@@ -151,7 +152,7 @@ component TransferCard inherits Card {
                     }
                 }
                 if !root.transfer.active: GhostButton {
-                    label: "Dismiss";
+                    label: @tr("Dismiss");
                     clicked => { Logic.dismiss-transfer(root.transfer.key); }
                 }
             }
@@ -187,19 +188,19 @@ component RenameRow inherits HorizontalLayout {
     spacing: Theme.space-2;
     name-field := LineEdit {
         text <=> State.rename-input;
-        placeholder-text: "Peer name";
+        placeholder-text: @tr("Peer name");
         horizontal-stretch: 1;
         accepted => { Logic.rename-peer-confirm(); }
     }
     PrimaryButton {
-        label: "Save";
+        label: @tr("Save");
         clicked => {
             // Losing focus commits the keyboard's composing text on Android.
             name-field.clear-focus();
             Logic.rename-peer-confirm();
         }
     }
-    GhostButton { label: "Cancel"; clicked => { Logic.rename-peer-cancel(); } }
+    GhostButton { label: @tr("Cancel"); clicked => { Logic.rename-peer-cancel(); } }
 }
 
 // "Forget <peer>?" with an explicit, solid confirm button.
@@ -218,7 +219,7 @@ component ForgetConfirm inherits Rectangle {
         spacing: Theme.space-2;
 
         Text {
-            text: "Forget " + State.selected-name + "? You'll need to pair again to exchange files.";
+            text: @tr("Forget {}? You'll need to pair again to exchange files.", State.selected-name);
             color: Theme.text-strong;
             font-size: Theme.font-sm;
             wrap: word-wrap;
@@ -226,9 +227,9 @@ component ForgetConfirm inherits Rectangle {
         HorizontalLayout {
             alignment: end;
             spacing: Theme.space-2;
-            GhostButton { label: "Cancel"; clicked => { root.cancelled(); } }
+            GhostButton { label: @tr("Cancel"); clicked => { root.cancelled(); } }
             DangerButton {
-                label: "Forget";
+                label: @tr("Forget");
                 icon: Icons.trash;
                 solid: true;
                 clicked => { root.confirmed(); }
@@ -250,7 +251,7 @@ export component EmptyPeersCard inherits Card {
             LogoMark { size: 56px; }
         }
         Text {
-            text: State.peers.length == 0 ? "Pair your first device" : "Choose a peer";
+            text: State.peers.length == 0 ? @tr("Pair your first device") : @tr("Choose a peer");
             color: Theme.text-strong;
             font-size: Theme.font-lg;
             font-weight: 700;
@@ -259,7 +260,7 @@ export component EmptyPeersCard inherits Card {
         if State.peers.length == 0: HorizontalLayout {
             alignment: center;
             PrimaryButton {
-                label: "Add a peer";
+                label: @tr("Add a peer");
                 icon: Icons.add-peer;
                 clicked => {
                     State.page = "add-peer";
@@ -326,7 +327,7 @@ export component OutboxCard inherits Card {
                 spacing: 2px;
                 horizontal-stretch: 1;
                 Text {
-                    text: State.outbox-count == 1 ? "1 file ready to send" : State.outbox-count + " files ready to send";
+                    text: @tr("{n} file ready to send" | "{n} files ready to send" % State.outbox-count);
                     color: Theme.text-strong;
                     font-weight: 650;
                     overflow: elide;
@@ -334,7 +335,7 @@ export component OutboxCard inherits Card {
             }
             VerticalLayout {
                 alignment: center;
-                GhostButton { label: "Clear"; clicked => { Logic.outbox-clear(); } }
+                GhostButton { label: @tr("Clear"); clicked => { Logic.outbox-clear(); } }
             }
         }
 
@@ -411,20 +412,20 @@ component SendCard inherits Card {
                 spacing: 2px;
                 horizontal-stretch: 1;
                 Text {
-                    text: "Send to " + State.selected-name;
+                    text: @tr("Send to {}", State.selected-name);
                     color: Theme.text-strong;
                     font-weight: 650;
                     overflow: elide;
                 }
                 if State.outbox-count > 0: Text {
-                    text: State.outbox-count == 1 ? "1 file attached" : State.outbox-count + " files attached";
+                    text: @tr("{n} file attached" | "{n} files attached" % State.outbox-count);
                     color: Theme.text-muted;
                     font-size: Theme.font-sm;
                 }
             }
             if State.outbox-count > 0: VerticalLayout {
                 alignment: center;
-                GhostButton { label: "Clear"; clicked => { Logic.outbox-clear(); } }
+                GhostButton { label: @tr("Clear"); clicked => { Logic.outbox-clear(); } }
             }
         }
 
@@ -432,7 +433,7 @@ component SendCard inherits Card {
 
         text-box := TextEdit {
             text <=> State.paste-input;
-            placeholder-text: "Type or paste text…";
+            placeholder-text: @tr("Type or paste text…");
             wrap: word-wrap;
             height: 96px;
         }
@@ -440,22 +441,22 @@ component SendCard inherits Card {
         HorizontalLayout {
             spacing: Theme.space-2;
             AttachButton {
-                label: "Paste";
+                label: @tr("Paste");
                 icon: Icons.clipboard;
                 clicked => { Logic.paste-clipboard(); }
             }
             if State.touch: AttachButton {
-                label: "Picture";
+                label: @tr("Picture");
                 icon: Icons.image;
                 clicked => { Logic.pick-images(); }
             }
             if State.touch: AttachButton {
-                label: "App";
+                label: @tr("App");
                 icon: Icons.apps;
                 clicked => { Logic.pick-app(); }
             }
             AttachButton {
-                label: "Files";
+                label: @tr("Files");
                 icon: Icons.folder;
                 enabled: State.touch || !State.selected-sending;
                 clicked => {
@@ -471,7 +472,7 @@ component SendCard inherits Card {
         HorizontalLayout {
             alignment: State.touch ? stretch : end;
             PrimaryButton {
-                label: State.selected-sending ? "Sending…" : "Send";
+                label: State.selected-sending ? @tr("Sending…") : @tr("Send");
                 icon: Icons.send;
                 enabled: !State.selected-sending
                     && (State.paste-input != "" || State.outbox-count > 0);
@@ -487,9 +488,9 @@ component SendCard inherits Card {
 
 component HistoryHeader inherits HorizontalLayout {
     padding-top: Theme.space-2;
-    SectionTitle { label: "History"; horizontal-stretch: 1; }
+    SectionTitle { label: @tr("History"); horizontal-stretch: 1; }
     if State.touch: IconButton { icon: Icons.refresh; clicked => { Logic.refresh-history(); } }
-    if !State.touch: GhostButton { label: "Refresh"; icon: Icons.refresh; clicked => { Logic.refresh-history(); } }
+    if !State.touch: GhostButton { label: @tr("Refresh"); icon: Icons.refresh; clicked => { Logic.refresh-history(); } }
 }
 
 component NoHistory inherits Rectangle {
@@ -498,7 +499,7 @@ component NoHistory inherits Rectangle {
     border-color: Theme.border;
     height: 64px;
     Text {
-        text: "No transfers with " + State.selected-name + " yet.";
+        text: @tr("No transfers with {} yet.", State.selected-name);
         color: Theme.text-faint;
         font-size: Theme.font-sm;
         horizontal-alignment: center;
@@ -515,8 +516,8 @@ component PresenceLine inherits HorizontalLayout {
         Dot { online: State.selected-online; size: 7px; }
     }
     Text {
-        text: State.selected-guest ? (State.selected-online ? "Connected" : "Link open")
-            : State.selected-online ? "Online" : "Offline";
+        text: State.selected-guest ? (State.selected-online ? @tr("Connected") : @tr("Link open"))
+            : State.selected-online ? @tr("Online") : @tr("Offline");
         color: State.selected-online ? Theme.online : Theme.text-muted;
         font-size: Theme.font-sm;
         font-weight: 600;
@@ -553,12 +554,12 @@ component GuestQr inherits Rectangle {
 component GuestLinkDetails inherits VerticalLayout {
     spacing: Theme.space-3;
 
-    SectionHeader { label: "Browser link"; icon: Icons.globe; }
+    SectionHeader { label: @tr("Browser link"); icon: Icons.globe; }
     HintText {
-        label: "Open it in any browser on the same Wi-Fi (or your hotspot). Whoever has the link can send and receive here until you close it.";
+        label: @tr("Open it in any browser on the same Wi-Fi (or your hotspot). Whoever has the link can send and receive here until you close it.");
     }
     if State.guest-url == "": StatusText {
-        label: "No local network found. Connect to Wi-Fi or turn on your hotspot.";
+        label: @tr("No local network found. Connect to Wi-Fi or turn on your hotspot.");
         error: true;
     }
     if State.guest-url != "": HorizontalLayout {
@@ -585,7 +586,7 @@ component GuestLinkDetails inherits VerticalLayout {
             }
         }
         SecondaryButton {
-            label: "Copy";
+            label: @tr("Copy");
             icon: Icons.copy;
             clicked => { Logic.guest-copy-url(); }
         }
@@ -593,7 +594,7 @@ component GuestLinkDetails inherits VerticalLayout {
     if State.guest-more-addresses: HorizontalLayout {
         alignment: start;
         GhostButton {
-            label: "Not working? Try another address";
+            label: @tr("Not working? Try another address");
             icon: Icons.refresh;
             clicked => { Logic.guest-next-address(); }
         }
@@ -668,18 +669,18 @@ component WidePeerView inherits Rectangle {
                 }
                 if State.selected-guest: VerticalLayout {
                     alignment: center;
-                    DangerButton { label: "Close link"; icon: Icons.close; clicked => { Logic.guest-stop(); } }
+                    DangerButton { label: @tr("Close link"); icon: Icons.close; clicked => { Logic.guest-stop(); } }
                 }
                 if !State.selected-guest && !State.rename-mode && !root.confirm-forget: HorizontalLayout {
                     spacing: Theme.space-1;
                     alignment: end;
                     VerticalLayout {
                         alignment: center;
-                        GhostButton { label: "Rename"; icon: Icons.edit; clicked => { Logic.rename-peer(); } }
+                        GhostButton { label: @tr("Rename"); icon: Icons.edit; clicked => { Logic.rename-peer(); } }
                     }
                     VerticalLayout {
                         alignment: center;
-                        DangerButton { label: "Forget"; icon: Icons.trash; clicked => { root.confirm-forget = true; } }
+                        DangerButton { label: @tr("Forget"); icon: Icons.trash; clicked => { root.confirm-forget = true; } }
                     }
                 }
             }
@@ -785,12 +786,12 @@ component PhonePeerView inherits Rectangle {
                         spacing: 2px;
                         horizontal-stretch: 1;
                         Text {
-                            text: "Close the browser link";
+                            text: @tr("Close the browser link");
                             color: Theme.text-strong;
                             font-weight: 600;
                         }
                         Text {
-                            text: "The page stops working; nothing is remembered.";
+                            text: @tr("The page stops working; nothing is remembered.");
                             color: Theme.text-muted;
                             font-size: Theme.font-sm;
                             wrap: word-wrap;
@@ -799,7 +800,7 @@ component PhonePeerView inherits Rectangle {
                     VerticalLayout {
                         alignment: center;
                         DangerButton {
-                            label: "Close";
+                            label: @tr("Close");
                             clicked => {
                                 State.peer-open = false;
                                 Logic.guest-stop();
@@ -814,14 +815,14 @@ component PhonePeerView inherits Rectangle {
                         spacing: 2px;
                         horizontal-stretch: 1;
                         Text {
-                            text: "Forget this peer";
+                            text: @tr("Forget this peer");
                             color: Theme.text-strong;
                             font-weight: 600;
                         }
                     }
                     VerticalLayout {
                         alignment: center;
-                        DangerButton { label: "Forget"; clicked => { root.confirm-forget = true; } }
+                        DangerButton { label: @tr("Forget"); clicked => { root.confirm-forget = true; } }
                     }
                 }
                 if !State.selected-guest && root.confirm-forget: ForgetConfirm {
@@ -915,7 +916,7 @@ export component AppPickerSheet inherits Rectangle {
             HorizontalLayout {
                 spacing: Theme.space-2;
                 Text {
-                    text: "Send an app";
+                    text: @tr("Send an app");
                     color: Theme.text-strong;
                     font-size: Theme.font-lg;
                     font-weight: 700;
@@ -930,18 +931,18 @@ export component AppPickerSheet inherits Rectangle {
             }
             LineEdit {
                 text <=> State.app-filter;
-                placeholder-text: "Search apps";
+                placeholder-text: @tr("Search apps");
                 edited(text) => { Logic.app-filter-changed(text); }
             }
             if State.apps-loading: Text {
-                text: "Loading apps…";
+                text: @tr("Loading apps…");
                 color: Theme.text-muted;
                 horizontal-alignment: center;
                 vertical-stretch: 1;
                 vertical-alignment: center;
             }
             if !State.apps-loading && State.apps.length == 0: Text {
-                text: State.app-filter == "" ? "No installed apps to send." : "No app matches.";
+                text: State.app-filter == "" ? @tr("No installed apps to send.") : @tr("No app matches.");
                 color: Theme.text-muted;
                 horizontal-alignment: center;
                 vertical-stretch: 1;

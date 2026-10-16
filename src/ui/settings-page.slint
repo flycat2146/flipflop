@@ -48,10 +48,10 @@ export component SettingsPage inherits Rectangle {
                 spacing: Theme.space-4;
                 alignment: start;
 
-                PageTitle { title: "Settings"; }
+                PageTitle { title: @tr("Settings"); }
 
                 SettingsCard {
-                    title: "This device";
+                    title: @tr("This device");
                     icon: Icons.device;
 
                     if !State.name-editing: HorizontalLayout {
@@ -65,7 +65,7 @@ export component SettingsPage inherits Rectangle {
                             horizontal-stretch: 1;
                         }
                         GhostButton {
-                            label: "Edit";
+                            label: @tr("Edit");
                             icon: Icons.edit;
                             clicked => {
                                 State.name-input = State.my-name;
@@ -77,13 +77,13 @@ export component SettingsPage inherits Rectangle {
                         spacing: Theme.space-2;
                         name-field := LineEdit {
                             text <=> State.name-input;
-                            placeholder-text: "Device name";
+                            placeholder-text: @tr("Device name");
                             horizontal-stretch: 1;
                             init => { self.focus(); }
                             accepted => { Logic.rename-self-name(); }
                         }
                         PrimaryButton {
-                            label: "Save";
+                            label: @tr("Save");
                             clicked => {
                                 // Losing focus commits the keyboard's composing
                                 // text on Android; `name-input` lacks it until then.
@@ -92,7 +92,7 @@ export component SettingsPage inherits Rectangle {
                             }
                         }
                         GhostButton {
-                            label: "Cancel";
+                            label: @tr("Cancel");
                             clicked => {
                                 name-field.clear-focus();
                                 State.name-editing = false;
@@ -102,24 +102,37 @@ export component SettingsPage inherits Rectangle {
                 }
 
                 SettingsCard {
-                    title: "Appearance";
+                    title: @tr("Appearance");
                     icon: Icons.settings;
 
                     ComboBox {
-                        model: ["System", "Light", "Dark"];
+                        model: [@tr("System"), @tr("Light"), @tr("Dark")];
                         current-index <=> State.theme;
                         selected => { Logic.save-settings(); }
                     }
                 }
 
+                // Language names stay in their own language, so "System" is the
+                // only translatable entry here.
                 SettingsCard {
-                    title: "Received files";
+                    title: @tr("Language");
+                    icon: Icons.globe;
+
+                    ComboBox {
+                        model: [@tr("System"), "English", "简体中文"];
+                        current-index <=> State.language;
+                        selected => { Logic.save-settings(); }
+                    }
+                }
+
+                SettingsCard {
+                    title: @tr("Received files");
                     icon: Icons.folder;
 
                     // The folder picker is desktop-only; on Android received
                     // files land in Download/flipflop/<peer>/.
                     if !State.touch: Field {
-                        label: "Save to";
+                        label: @tr("Save to");
                         HorizontalLayout {
                             spacing: Theme.space-2;
                             Rectangle {
@@ -141,38 +154,38 @@ export component SettingsPage inherits Rectangle {
                                     }
                                 }
                             }
-                            SecondaryButton { label: "Browse…"; icon: Icons.folder; clicked => { Logic.pick-downloads-dir(); } }
+                            SecondaryButton { label: @tr("Browse…"); icon: Icons.folder; clicked => { Logic.pick-downloads-dir(); } }
                         }
                     }
                     CheckBox {
-                        text: "Keep a transfer history";
+                        text: @tr("Keep a transfer history");
                         checked <=> State.history-enabled;
                         toggled => { Logic.save-settings(); }
                     }
                 }
 
                 SettingsCard {
-                    title: "Who can see you";
+                    title: @tr("Who can see you");
                     icon: Icons.shield;
 
                     ComboBox {
-                        model: ["Everyone nearby", "Paired devices only", "Nobody (hidden)"];
+                        model: [@tr("Everyone nearby"), @tr("Paired devices only"), @tr("Nobody (hidden)")];
                         current-index <=> State.discoverability;
                         selected => { Logic.save-settings(); }
                     }
                 }
 
                 SettingsCard {
-                    title: "Relay";
+                    title: @tr("Relay");
                     icon: Icons.relay;
 
                     ComboBox {
-                        model: ["Default (n0 public relays)", "Disabled (direct connections only)", "Custom relays"];
+                        model: [@tr("Default (n0 public relays)"), @tr("Disabled (direct connections only)"), @tr("Custom relays")];
                         current-index <=> State.relay-mode;
                         selected => { Logic.save-settings(); }
                     }
                     if State.relay-mode == 2: Field {
-                        label: "Relay URLs";
+                        label: @tr("Relay URLs");
                         TextEdit {
                             text <=> State.relay-urls;
                             edited => { Logic.settings-edited(); }
@@ -181,18 +194,18 @@ export component SettingsPage inherits Rectangle {
                         }
                     }
                     if State.relay-mode == 2: Field {
-                        label: "Auth token (optional)";
+                        label: @tr("Auth token (optional)");
                         LineEdit {
                             text <=> State.relay-token;
                             edited => { Logic.settings-edited(); }
                             input-type: password;
-                            placeholder-text: "Token";
+                            placeholder-text: @tr("Token");
                         }
                     }
                     if State.relay-mode == 2: Field {
-                        label: "If the relay is unreachable";
+                        label: @tr("If the relay is unreachable");
                         ComboBox {
-                            model: ["Fail the transfer (strict)", "Fall back to public relays"];
+                            model: [@tr("Fail the transfer (strict)"), @tr("Fall back to public relays")];
                             current-index <=> State.relay-fallback;
                             selected => { Logic.save-settings(); }
                         }
@@ -204,16 +217,16 @@ export component SettingsPage inherits Rectangle {
                 }
 
                 SettingsCard {
-                    title: "Discovery";
+                    title: @tr("Discovery");
                     icon: Icons.globe;
 
                     ComboBox {
-                        model: ["Default (n0)", "Custom pkarr relay"];
+                        model: [@tr("Default (n0)"), @tr("Custom pkarr relay")];
                         current-index <=> State.discovery-mode;
                         selected => { Logic.save-settings(); }
                     }
                     if State.discovery-mode == 1: Field {
-                        label: "pkarr relay URL";
+                        label: @tr("pkarr relay URL");
                         LineEdit {
                             text <=> State.discovery-pkarr-url;
                             edited => { Logic.settings-edited(); }
@@ -221,7 +234,7 @@ export component SettingsPage inherits Rectangle {
                         }
                     }
                     if State.discovery-mode == 1: Field {
-                        label: "DNS origin (optional)";
+                        label: @tr("DNS origin (optional)");
                         LineEdit {
                             text <=> State.discovery-dns-origin;
                             edited => { Logic.settings-edited(); }

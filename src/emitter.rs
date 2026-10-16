@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::format::{fmt_bytes, fmt_speed, parse_progress};
+use crate::i18n;
 use crate::TransferRow;
 
 /// One node/transfer event: (name, json payload).
@@ -52,24 +53,21 @@ impl crate::engine::EventEmitter for MainEmitter {
 pub fn apply_transfer_event(row: &mut TransferRow, name: &str, payload: Option<&str>) {
     match name {
         "transfer-started" | "receive-started" => {
-            row.status = "Transferring…".into();
+            row.status = i18n::tr("Transferring…").into();
             row.error = "".into();
         }
         "share-peer-connected" => {
-            row.status = "Peer connected, transferring…".into();
+            row.status = i18n::tr("Peer connected, transferring…").into();
         }
         "transfer-progress" | "receive-progress" => {
             if let Some((bytes, total, speed)) = payload.and_then(parse_progress) {
                 if total > 0 {
                     let frac = (bytes as f32 / total as f32).min(1.0);
                     row.progress = frac;
-                    row.progress_label = format!(
-                        "{}% · {} of {}",
-                        (frac * 100.0) as u32,
-                        fmt_bytes(bytes),
-                        fmt_bytes(total)
-                    )
-                    .into();
+                    let percent = ((frac * 100.0) as u32).to_string();
+                    let (done, total) = (fmt_bytes(bytes), fmt_bytes(total));
+                    row.progress_label =
+                        i18n::tr_args("{}% · {} of {}", &[&percent, &done, &total]).into();
                 }
                 row.speed = fmt_speed(speed).into();
             }
@@ -78,7 +76,7 @@ pub fn apply_transfer_event(row: &mut TransferRow, name: &str, payload: Option<&
             row.progress = 1.0;
             row.progress_label = "100%".into();
             row.speed = "".into();
-            row.status = "Sent".into();
+            row.status = i18n::tr("Sent").into();
             row.error = "".into();
         }
         "receive-completed" => {
@@ -87,15 +85,16 @@ pub fn apply_transfer_event(row: &mut TransferRow, name: &str, payload: Option<&
             row.speed = "".into();
             let out = json_str(payload, "outputDir").unwrap_or_default();
             row.status = if out.is_empty() {
-                "Received".into()
+                i18n::tr("Received").into()
             } else {
-                format!("Saved to {out}").into()
+                i18n::tr_args("Saved to {}", &[&out]).into()
             };
         }
         "transfer-failed" => {
             // The share stays open: the receiver may retry and resume.
             row.speed = "".into();
-            row.error = "Transfer interrupted. The peer can retry while this stays open.".into();
+            row.error =
+                i18n::tr("Transfer interrupted. The peer can retry while this stays open.").into();
         }
         "receive-conflicts" => {
             let count = payload
@@ -103,8 +102,13 @@ pub fn apply_transfer_event(row: &mut TransferRow, name: &str, payload: Option<&
                 .and_then(|v| v.as_array().map(Vec::len))
                 .unwrap_or(0);
             if count > 0 {
-                let files = if count == 1 { "file" } else { "files" };
-                row.note = format!("{count} {files} renamed to avoid overwriting").into();
+                row.note = i18n::trn(
+                    "{n} file renamed to avoid overwriting",
+                    "{n} files renamed to avoid overwriting",
+                    count as i64,
+                    &[],
+                )
+                .into();
             }
         }
         _ => {}

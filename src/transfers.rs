@@ -22,6 +22,7 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 use crate::app::{refresh_history, short_id, AppCtx};
 use crate::emitter::apply_transfer_event;
 use crate::format::fmt_bytes;
+use crate::i18n;
 use crate::platform::{self, toast, toast_later};
 use crate::recorder::{Ctx, Recorder};
 use crate::{android, guest, AppWindow, Logic, OutboxRow, State, TransferRow};
@@ -179,7 +180,7 @@ pub(crate) fn post_update(
 pub(crate) fn fail(weak: &Weak<AppWindow>, key: &str, msg: String) {
     post_update(weak, key, move |row| {
         row.active = false;
-        row.status = "Failed".into();
+        row.status = i18n::tr("Failed").into();
         row.speed = "".into();
         row.error = msg.into();
     });
@@ -351,11 +352,11 @@ fn metadata_for(paths: &[PathBuf]) -> crate::engine::FileMetadata {
 /// "report.pdf" for one item, "3 items" for several.
 pub(crate) fn items_title(first_name: &str, count: usize) -> String {
     if first_name == PASTE_FILE_NAME && count == 1 {
-        "text".to_string()
+        i18n::tr("Text")
     } else if count == 1 {
         first_name.to_string()
     } else {
-        format!("{count} items")
+        i18n::trn("{n} item", "{n} items", count as i64, &[])
     }
 }
 
@@ -498,7 +499,7 @@ fn start_send(
             sending: true,
             active: true,
             title: items_title(&first_name, paths.len()).into(),
-            status: "Preparing…".into(),
+            status: i18n::tr("Preparing…").into(),
             ..Default::default()
         },
     );
@@ -537,12 +538,16 @@ fn spawn_send(
         })
         .await
         {
-                Ok(v) => v,
-                Err(e) => {
-                    unqueue(&ctx, &key);
-                    return fail(&weak, &key, format!("Could not read the files: {e}"));
-                }
-            };
+            Ok(v) => v,
+            Err(e) => {
+                unqueue(&ctx, &key);
+                return fail(
+                    &weak,
+                    &key,
+                    i18n::tr_args("Could not read the files: {}", &[&e.to_string()]),
+                );
+            }
+        };
         let (byte_count, item_count) = (metadata.size, metadata.item_count);
         post_update(&weak, &key, move |row| {
             row.progress_label = fmt_bytes(byte_count).into();
@@ -594,7 +599,11 @@ fn spawn_send(
                 tracing::warn!(%peer_id, "send: share setup failed: {e:#}");
                 forget_stopped(&ctx, &key).await;
                 unqueue(&ctx, &key);
-                return fail(&weak, &key, format!("Could not start share: {e:#}"));
+                return fail(
+                    &weak,
+                    &key,
+                    i18n::tr_args("Could not start share: {}", &[&format!("{e:#}")]),
+                );
             }
         };
         let ticket = share.ticket.clone();
@@ -630,7 +639,9 @@ fn spawn_send(
             })
             .is_some_and(|d| d.online);
         let delivered = if online {
-            post_update(&weak, &key, |row| row.status = "Contacting peer…".into());
+            post_update(&weak, &key, |row| {
+                row.status = i18n::tr("Contacting peer…").into()
+            });
             match node
                 .invite_paired_device(&peer_id, &ticket, item_count, byte_count)
                 .await
@@ -650,8 +661,10 @@ fn spawn_send(
             post_update(&weak, &key, move |row| {
                 row.waiting = false;
                 // Progress events may already have moved the status on.
-                if row.status.as_str() == "Contacting peer…" {
-                    row.status = format!("Delivered, waiting for {peer_name} to download…").into();
+                if row.status.as_str() == i18n::tr("Contacting peer…") {
+                    row.status =
+                        i18n::tr_args("Delivered, waiting for {} to download…", &[&peer_name])
+                            .into();
                 }
             });
             return;
@@ -668,7 +681,7 @@ fn spawn_send(
             let name = peer_name.clone();
             post_update(&weak, &key, move |row| {
                 row.waiting = true;
-                row.status = format!("Waiting for {name} to come online").into();
+                row.status = i18n::tr_args("Waiting for {} to come online", &[&name]).into();
             });
             ctx.transfers.waiting.lock().unwrap().insert(
                 key.clone(),
@@ -742,7 +755,8 @@ pub(crate) fn retry_waiting(ctx: &AppCtx, peer: Option<&str>) {
             unqueue(&ctx, &key);
             post_update(&ctx.weak, &key, move |row| {
                 row.waiting = false;
-                row.status = format!("Delivered, waiting for {peer_name} to download…").into();
+                row.status =
+                    i18n::tr_args("Delivered, waiting for {} to download…", &[&peer_name]).into();
             });
         });
     }
@@ -815,7 +829,7 @@ pub(crate) fn restore_queued(ctx: &AppCtx, ui: &AppWindow, path: PathBuf) {
                 active: true,
                 waiting: true,
                 title: title.into(),
-                status: format!("Waiting for {} to come online", send.peer_name).into(),
+                status: i18n::tr_args("Waiting for {} to come online", &[&send.peer_name]).into(),
                 ..Default::default()
             },
         );
@@ -825,12 +839,12 @@ pub(crate) fn restore_queued(ctx: &AppCtx, ui: &AppWindow, path: PathBuf) {
     }
     if dropped > 0 {
         save_queue(ctx);
-        let what = if dropped == 1 {
-            "A queued send was"
+        let msg = if dropped == 1 {
+            i18n::tr("A queued send was dropped: its files are gone")
         } else {
-            "Some queued sends were"
+            i18n::tr("Some queued sends were dropped: their files are gone")
         };
-        toast(ui, &format!("{what} dropped: its files are gone"), true);
+        toast(ui, &msg, true);
     }
 }
 
@@ -849,7 +863,11 @@ pub(crate) fn start_restored(ctx: &AppCtx) {
                 Err(e) => {
                     release(ctx, &send.staged);
                     unqueue(ctx, &key);
-                    fail(&ctx.weak, &key, format!("Could not prepare the text: {e}"));
+                    fail(
+                        &ctx.weak,
+                        &key,
+                        i18n::tr_args("Could not prepare the text: {}", &[&e.to_string()]),
+                    );
                     continue;
                 }
             },
@@ -982,7 +1000,7 @@ async fn finish_send(ctx: AppCtx, key: String) {
     let _ = ctx.weak.upgrade_in_event_loop(move |ui| {
         // Done: the history row is its record from here on.
         remove_row(&ui, &key);
-        toast(&ui, &format!("Sent to {peer_name}"), false);
+        toast(&ui, &i18n::tr_args("Sent to {}", &[&peer_name]), false);
         refresh_history(&ctx_ui);
     });
 }
@@ -1004,7 +1022,7 @@ fn stop_send(ctx: &AppCtx, key: String) {
         }
         if let Some(ui) = ctx.weak.upgrade() {
             remove_row(&ui, &key);
-            toast(&ui, "Send cancelled", false);
+            toast(&ui, &i18n::tr("Send cancelled"), false);
         }
         return;
     }
@@ -1032,7 +1050,7 @@ fn stop_send(ctx: &AppCtx, key: String) {
         let ctx_ui = ctx.clone();
         let _ = ctx.weak.upgrade_in_event_loop(move |ui| {
             remove_row(&ui, &key);
-            toast(&ui, "Send stopped", false);
+            toast(&ui, &i18n::tr("Send stopped"), false);
             refresh_history(&ctx_ui);
         });
     });
@@ -1120,11 +1138,7 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
     };
 
     let key = ctx.transfers.new_key("recv");
-    let items = if invite.file_count == 1 {
-        "1 item".to_string()
-    } else {
-        format!("{} items", invite.file_count)
-    };
+    let items = i18n::trn("{n} item", "{n} items", invite.file_count as i64, &[]);
     insert_row(
         &ui,
         TransferRow {
@@ -1134,7 +1148,7 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
             active: true,
             title: items.into(),
             progress_label: fmt_bytes(invite.total_size).into(),
-            status: "Accepting…".into(),
+            status: i18n::tr("Accepting…").into(),
             ..Default::default()
         },
     );
@@ -1173,7 +1187,10 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
 
         if let Err(e) = node.respond_paired_invite(&id, true).await {
             tracing::warn!(%id, "receive: accept handshake failed: {e}");
-            return give_up(format!("Could not accept files from {peer_name}: {e}"));
+            return give_up(i18n::tr_args(
+                "Could not accept files from {}: {}",
+                &[&peer_name, &e.to_string()],
+            ));
         }
         let recorder = Arc::new(Recorder::new(
             ctx.history.clone(),
@@ -1203,8 +1220,14 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
             close_when_sent: None,
             received: Some(received.clone()),
         }));
-        toast_later(&weak, format!("{peer_name} is sending you files"), false);
-        post_update(&weak, &key, |row| row.status = "Connecting…".into());
+        toast_later(
+            &weak,
+            i18n::tr_args("{} is sending you files", &[&peer_name]),
+            false,
+        );
+        post_update(&weak, &key, |row| {
+            row.status = i18n::tr("Connecting…").into()
+        });
 
         let result = node
             .download_from_peer(&id, &invite.ticket, save_dir.clone(), app_handle, cancel_rx)
@@ -1229,9 +1252,9 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
                     // Done: the history row is its record from here on.
                     remove_row(&ui, &key);
                     let msg = if pasted.is_some() {
-                        format!("Text from {peer_name}")
+                        i18n::tr_args("Text from {}", &[&peer_name])
                     } else {
-                        format!("Files from {peer_name} saved")
+                        i18n::tr_args("Files from {} saved", &[&peer_name])
                     };
                     toast(&ui, &msg, false);
                     refresh_history(&ctx_ui);
@@ -1241,7 +1264,7 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
                 recorder.finalize(TransferStatus::Cancelled, None, None, None, None);
                 let _ = weak.upgrade_in_event_loop(move |ui| {
                     remove_row(&ui, &key);
-                    toast(&ui, "Receive cancelled", false);
+                    toast(&ui, &i18n::tr("Receive cancelled"), false);
                     refresh_history(&ctx_ui);
                 });
             }
@@ -1254,12 +1277,15 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
                     Some(format!("{e:#}")),
                 );
                 tracing::warn!(%id, "receive: failed: {e:#}");
-                let msg = format!("Receive from {peer_name} failed: {e:#}");
+                let msg = i18n::tr_args(
+                    "Receive from {} failed: {}",
+                    &[&peer_name, &format!("{e:#}")],
+                );
                 let _ = weak.upgrade_in_event_loop(move |ui| {
                     toast(&ui, &msg, true);
                     update_row(&ui, &key, |row| {
                         row.active = false;
-                        row.status = "Failed".into();
+                        row.status = i18n::tr("Failed").into();
                         row.speed = "".into();
                         row.error = msg.into();
                     });
@@ -1278,7 +1304,11 @@ pub(crate) fn accept_invite(ctx: &AppCtx, payload: serde_json::Value) {
 fn pick_and_send(ctx: &AppCtx) {
     let Some(ui) = ctx.weak.upgrade() else { return };
     let Some(node) = ctx.node() else {
-        toast(&ui, "Still connecting. Try again in a moment.", false);
+        toast(
+            &ui,
+            &i18n::tr("Still connecting. Try again in a moment."),
+            false,
+        );
         return;
     };
     let state = ui.global::<State>();
@@ -1351,7 +1381,11 @@ pub(crate) fn register(ctx: &AppCtx) {
                 return;
             }
             let Some(node) = ctx.node() else {
-                toast(&ui, "Still connecting. Try again in a moment.", false);
+                toast(
+                    &ui,
+                    &i18n::tr("Still connecting. Try again in a moment."),
+                    false,
+                );
                 return;
             };
             if !text.trim().is_empty() {
@@ -1369,7 +1403,11 @@ pub(crate) fn register(ctx: &AppCtx) {
                             Some(dir),
                         );
                     }
-                    Err(e) => toast(&ui, &format!("Could not prepare the text: {e}"), true),
+                    Err(e) => toast(
+                        &ui,
+                        &i18n::tr_args("Could not prepare the text: {}", &[&e.to_string()]),
+                        true,
+                    ),
                 }
             }
             if !queued.is_empty() {
@@ -1395,7 +1433,7 @@ pub(crate) fn register(ctx: &AppCtx) {
                 let Some(ui) = weak.upgrade() else { return };
                 match text.filter(|t| !t.trim().is_empty()) {
                     Some(text) => ui.global::<State>().set_paste_input(text.into()),
-                    None => toast(&ui, "The clipboard has no text", false),
+                    None => toast(&ui, &i18n::tr("The clipboard has no text"), false),
                 }
             });
         });
@@ -1443,7 +1481,7 @@ pub(crate) fn register(ctx: &AppCtx) {
             if let Some(tx) = sender {
                 let _ = tx.send(());
                 if let Some(ui) = ctx.weak.upgrade() {
-                    update_row(&ui, &key, |row| row.status = "Cancelling…".into());
+                    update_row(&ui, &key, |row| row.status = i18n::tr("Cancelling…").into());
                 }
             }
         });
@@ -1508,7 +1546,7 @@ mod tests {
 
     #[test]
     fn paste_title_and_links() {
-        assert_eq!(items_title(PASTE_FILE_NAME, 1), "text");
+        assert_eq!(items_title(PASTE_FILE_NAME, 1), "Text");
         assert_eq!(
             as_link("  https://example.com/a?b=c \n"),
             Some("https://example.com/a?b=c")
@@ -1525,7 +1563,10 @@ mod tests {
         let preview = text_preview(&long);
         assert_eq!(preview.chars().count(), PREVIEW_MAX_CHARS + 1);
         assert!(preview.ends_with('…'));
-        assert_eq!(text_preview(&"x".repeat(PREVIEW_MAX_CHARS)).chars().count(), PREVIEW_MAX_CHARS);
+        assert_eq!(
+            text_preview(&"x".repeat(PREVIEW_MAX_CHARS)).chars().count(),
+            PREVIEW_MAX_CHARS
+        );
     }
 
     #[test]

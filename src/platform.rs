@@ -2,6 +2,7 @@
 //! the data directory. JNI on Android (see `android.rs`), rfd/arboard/open
 //! on desktop.
 
+use crate::i18n;
 use crate::AppWindow;
 use std::path::PathBuf;
 
@@ -89,11 +90,11 @@ pub fn pick_send_paths() -> Vec<PathBuf> {
     // Try the multi-file picker first; if nothing was picked, offer the
     // folder picker as a second step (cancelled folder pick => empty vec).
     rfd::FileDialog::new()
-        .set_title("Choose files to send")
+        .set_title(&i18n::tr("Choose files to send"))
         .pick_files()
         .unwrap_or_else(|| {
             rfd::FileDialog::new()
-                .set_title("Or pick a folder")
+                .set_title(&i18n::tr("Or pick a folder"))
                 .pick_folder()
                 .map(|f| vec![f])
                 .unwrap_or_default()
@@ -113,7 +114,7 @@ pub fn pick_downloads_folder() -> Option<PathBuf> {
 #[cfg(not(target_os = "android"))]
 pub fn pick_downloads_folder() -> Option<PathBuf> {
     rfd::FileDialog::new()
-        .set_title("Choose downloads folder")
+        .set_title(&i18n::tr("Choose downloads folder"))
         .pick_folder()
 }
 
