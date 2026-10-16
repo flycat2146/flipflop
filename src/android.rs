@@ -188,11 +188,11 @@ mod imp {
         if env.exception_check().unwrap_or(false) {
             let _ = env.exception_describe();
             let thrown = take_exception(env);
-            // JNI itself only reports "an exception was thrown"; the message is
-            // what tells a permission problem apart from a bug, so carry it into
-            // the error the caller logs and shows.
+            // The Java message is the informative half, and JNI's own "an exception
+            // was thrown" only crowds it out of a toast, which the system truncates
+            // after a line or two.
             result = match (result, thrown) {
-                (Err(error), Some(thrown)) => Err(format!("{error}: {thrown}")),
+                (Err(_), Some(thrown)) => Err(thrown),
                 (Err(error), None) => Err(error),
                 (Ok(_), Some(thrown)) => Err(thrown),
                 (Ok(value), None) => Ok(value),
@@ -1026,7 +1026,11 @@ mod imp {
             let staged = with_env(|env| stage_uris(env, &picked));
             if let Err(e) = staged {
                 tracing::warn!("staging picked files failed: {e}");
-                show_toast(&format!("Could not read the picked files: {e}"), true);
+                // A Toast is truncated after a line or two and the interesting half
+                // (which URI, and why) is at the end of this, so the clipboard gets
+                // the whole thing as well.
+                let _ = copy_to_clipboard(&e);
+                show_toast(&format!("Pick failed: {e}\n(also copied)"), true);
             }
             deliver_outbox(None, Origin::Picker);
         });
